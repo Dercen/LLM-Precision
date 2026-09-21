@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ptq-bench"
+version = "0.1.0"
+description = "Cross-precision post-training-quantization perplexity benchmark for LLMs"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "transformers==5.17.0",
+  "datasets==5.0.1",
+  "accelerate==1.15.0",
+  "safetensors>=0.8",
+  "huggingface-hub>=1.5,<2",
+  "sentencepiece>=0.2.1",
+  "protobuf",
+  "pydantic>=2,<3",
+  "pyyaml",
+  "numpy",
+  "pandas",
+  "matplotlib",
+  "tqdm",
+  "psutil",
+]
+
+[project.optional-dependencies]
+cpu   = ["torch==2.14.0"]
+cu126 = ["torch==2.14.0"]
+cu130 = ["torch==2.14.0"]
+hqq   = ["hqq==0.2.8.post1"]
+bnb   = ["bitsandbytes==0.50.2"]
+lmeval = ["lm_eval[hf]==0.4.13"]
+# server = ["gptqmodel==7.5.0", "torchao==0.18.0"]   # M6; gptqmodel needs a matching nvcc
+dev = ["pytest", "pytest-timeout", "ruff", "setuptools>=77,<83", "wheel", "ninja"]
+
+[project.scripts]
+ptq = "ptqbench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ptqbench"]
+
+[tool.pytest.ini_options]
+markers = [
+  "smoke: fast CPU smoke tests",
+  "gpu: requires CUDA",
+]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }, { extra = "cu130" }]]
+# no-build-isolation-package = ["gptqmodel"]   # uncommented at M6
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu",   extra = "cpu" },
+  { index = "pytorch-cu126", extra = "cu126" },
+  { index = "pytorch-cu130", extra = "cu130" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true

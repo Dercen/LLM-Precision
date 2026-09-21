@@ -1,0 +1,46 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model weights, dataset caches, quantized checkpoints (never commit)
+models/
+weights/
+checkpoints/
+data/
+hf_cache/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+
+# Experiment outputs (results/*.jsonl are small and CAN be committed; large dumps are not)
+results/**/*.pt
+results/**/*.safetensors
+results/**/*.log
+results/logs/
+results/slurm/
+logs/
+wandb/
+outputs/
+
+# Secrets
+.env
+*.token
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
