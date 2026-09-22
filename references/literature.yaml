@@ -110,24 +110,26 @@ rows:
 
   # ---- Llama-2-7B, wikitext2 -------------------------------------------------
   # AWQ Table 4 and OmniQuant Table 1 disagree slightly; both are recorded.
+  # AWQ's GPTQ baseline is the act-order variant (GPTQ-R): our act-order W4 per-row
+  # reproduced its 5.83 exactly (5.8303, 2026-09-22), so those rows declare act_order.
   # OmniQuant rows are protocol_uncertain: the paper calibrates its OWN method on
   # 128x2048 WikiText2 segments and never states how its baselines were produced.
   # RTN is data-free and so unaffected by that ambiguity.
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 5.47, source: awq, table: "4"}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 4, group_size: 128, ppl: 5.73, source: awq, table: "4"}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 4, group_size: 128, ppl: 5.72, source: omniquant, table: "1", protocol_uncertain: true}
-  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: 128, ppl: 5.69, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: 128, ppl: 5.69, source: awq, table: "4", calib: gptq_c4, act_order: true, note: "GPTQ-R: our act-order W4 per-row gave 5.8303 vs this 5.83 on 2026-09-22"}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: 128, ppl: 5.61, source: omniquant, table: "1", protocol_uncertain: true}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 4, group_size: 128, ppl: 5.60, source: awq, table: "4", calib: awq_pile}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 4, group_size: 128, ppl: 5.62, source: omniquant, table: "1", protocol_uncertain: true}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 4, group_size: -1, ppl: 6.11, source: awq, table: "4"}
-  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: -1, ppl: 5.83, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: -1, ppl: 5.83, source: awq, table: "4", calib: gptq_c4, act_order: true, note: "GPTQ-R: our act-order W4 per-row gave 5.8303 vs this 5.83 on 2026-09-22"}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 4, group_size: -1, ppl: 6.15, source: awq, table: "4", calib: awq_pile}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 3, group_size: 128, ppl: 6.66, source: awq, table: "4"}
-  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 3, group_size: 128, ppl: 6.29, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 3, group_size: 128, ppl: 6.29, source: awq, table: "4", calib: gptq_c4, act_order: true, note: "GPTQ-R: our act-order W4 per-row gave 5.8303 vs this 5.83 on 2026-09-22"}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 3, group_size: 128, ppl: 6.24, source: awq, table: "4", calib: awq_pile}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 3, group_size: -1, ppl: 539.48, source: awq, table: "4"}
-  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 3, group_size: -1, ppl: 8.37, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 3, group_size: -1, ppl: 8.37, source: awq, table: "4", calib: gptq_c4, act_order: true, note: "GPTQ-R: our act-order W4 per-row gave 5.8303 vs this 5.83 on 2026-09-22"}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 2, group_size: 128, ppl: 4200.0, source: omniquant, table: "1", approximate: true, protocol_uncertain: true}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 2, group_size: 128, ppl: 36.77, source: omniquant, table: "1", protocol_uncertain: true}
   - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 2, group_size: 64, ppl: 431.97, source: omniquant, table: "1", protocol_uncertain: true}
