@@ -77,63 +77,77 @@ def _luminance(hex_color: str) -> float:
 
 
 def plot_perplexity(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
+    """Small multiples: one row per group size, one column per dataset, <= 4 lines each.
+
+    Four methods x three group sizes on one axis is eleven series and unreadable; a
+    group size per row keeps every panel at one line per method. Group sizes with a
+    single bit width (g64, 2-bit only) have no line to draw and live in the heatmap
+    and the table instead.
+    """
     sub = ok[ok["model"] == model]
     if sub.empty:
         return None
     datasets = [d for d in DATASETS if d in set(sub["dataset"])]
-    fig, axes = plt.subplots(1, len(datasets), figsize=(4.6 * len(datasets), 4.2), squeeze=False)
+    gs_rows = [gs for gs in (-1, 128, 64)
+               if sub[(sub["group_size"] == gs) & (sub["algo"] != "fp")]["bits"].nunique() >= 2]
+    if not gs_rows:
+        return None
+    fig, axes = plt.subplots(len(gs_rows), len(datasets), figsize=(4.4 * len(datasets), 3.6 * len(gs_rows)),
+                             squeeze=False, sharey="row")
     handles: dict[str, Line2D] = {}
-    for ax, dataset in zip(axes[0], datasets, strict=True):
-        d = sub[sub["dataset"] == dataset]
-        fp = d[d["algo"] == "fp"]["ppl"]
-        ax.set_xticks(range(len(BITS)))
-        ax.set_xticklabels([f"{b}-bit" for b in BITS])
-        ax.set_yscale("log")
-        ax.grid(axis="x", visible=False)
-        if not fp.empty:
-            ax.axhline(fp.iloc[0], color=CHROME["axis"], linewidth=1.2, zorder=1)
-            ax.annotate(f"fp16 {fp.iloc[0]:.2f}", xy=(len(BITS) - 1 + 0.3, fp.iloc[0]),
-                        xytext=(0, 3), textcoords="offset points", ha="right", va="bottom",
-                        fontsize=8, color=INK["secondary"])
-        end_labels: list[tuple[int, float, str]] = []
-        for algo, colour in SERIES.items():
-            for gs, ls in GS_STYLE.items():
+    for ri, gs in enumerate(gs_rows):
+        for ci, dataset in enumerate(datasets):
+            ax = axes[ri][ci]
+            d = sub[sub["dataset"] == dataset]
+            fp = d[d["algo"] == "fp"]["ppl"]
+            ax.set_xticks(range(len(BITS)))
+            ax.set_xticklabels([f"{b}-bit" for b in BITS])
+            ax.set_yscale("log")
+            ax.grid(axis="x", visible=False)
+            if not fp.empty:
+                ax.axhline(fp.iloc[0], color=CHROME["axis"], linewidth=1.2, zorder=1)
+                ax.annotate(f"fp16 {fp.iloc[0]:.2f}", xy=(-0.35, fp.iloc[0]), xytext=(0, 3),
+                            textcoords="offset points", ha="left", va="bottom", fontsize=8, color=INK["secondary"])
+            end_labels: list[tuple[int, float, str]] = []
+            for algo, colour in SERIES.items():
                 q = d[(d["algo"] == algo) & (d["group_size"] == gs)].sort_values("bits", ascending=False)
                 if q.empty:
                     continue
                 xs = [BITS.index(b) for b in q["bits"] if b in BITS]
-                ys = [float(p) for b, p in zip(q["bits"], q["ppl"], strict=True) if b in BITS]
-                line, = ax.plot(xs, ys, ls, color=colour, linewidth=2, marker="o", markersize=8,
+                ys = [float(pv) for b, pv in zip(q["bits"], q["ppl"], strict=True) if b in BITS]
+                line, = ax.plot(xs, ys, "-", color=colour, linewidth=2, marker="o", markersize=8,
                                 markerfacecolor=colour, markeredgecolor=CHROME["surface"], markeredgewidth=2,
                                 solid_capstyle="round", zorder=3)
-                handles.setdefault(f"{algo}|{gs}", line)
+                handles.setdefault(algo, line)
                 paper = q[q["paper_ppl"].notna()]
                 if not paper.empty:
                     ax.plot([BITS.index(b) for b in paper["bits"]], paper["paper_ppl"].astype(float), "o",
                             markersize=8, markerfacecolor=CHROME["surface"], markeredgecolor=colour,
                             markeredgewidth=1.6, linestyle="none", zorder=4)
-                if xs and (gs == 128 or (gs == -1 and not (d["group_size"] == 128).any())):
+                if xs:
                     end_labels.append((xs[-1], ys[-1], ALGO_LABEL[algo]))
-        # Selective direct labels at each line's real endpoint, skipping collisions.
-        placed: list[tuple[int, float]] = []
-        for x, y, text in sorted(end_labels, key=lambda t: t[1]):
-            if any(px == x and abs(math.log10(y) - math.log10(py)) < 0.06 for px, py in placed):
-                continue
-            placed.append((x, y))
-            ax.annotate(text, xy=(x, y), xytext=(8, 0), textcoords="offset points",
-                        va="center", fontsize=8.5, color=INK["secondary"])
-        ax.set_title(dataset, loc="left")
-        ax.set_xlim(-0.4, len(BITS) - 0.4)
-        ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _fmt_ppl(v)))
-        ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-    axes[0][0].set_ylabel("perplexity (log)")
-    legend_items = [handles[k] for k in sorted(handles, key=lambda k: (list(SERIES).index(k.split("|")[0]), k))]
-    legend_labels = [f"{ALGO_LABEL[k.split('|')[0]]} {GS_LABEL[int(k.split('|')[1])]}" for k in sorted(handles, key=lambda k: (list(SERIES).index(k.split("|")[0]), k))]
-    legend_items.append(Line2D([], [], marker="o", linestyle="none", markersize=8, markerfacecolor=CHROME["surface"], markeredgecolor=INK["muted"], markeredgewidth=1.6))
+            placed: list[tuple[int, float]] = []
+            for x, y, text in sorted(end_labels, key=lambda t: t[1]):
+                if any(px == x and abs(math.log10(y) - math.log10(py)) < 0.08 for px, py in placed):
+                    continue
+                placed.append((x, y))
+                ax.annotate(text, xy=(x, y), xytext=(8, 0), textcoords="offset points",
+                            va="center", fontsize=8.5, color=INK["secondary"])
+            if ri == 0:
+                ax.set_title(dataset, loc="left")
+            ax.set_xlim(-0.4, len(BITS) - 0.4)
+            ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _fmt_ppl(v)))
+            ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+            if ci == 0:
+                ax.set_ylabel(f"{GS_LABEL[gs]}\nperplexity (log)")
+    legend_items = [handles[a] for a in SERIES if a in handles]
+    legend_labels = [ALGO_LABEL[a] for a in SERIES if a in handles]
+    legend_items.append(Line2D([], [], marker="o", linestyle="none", markersize=8, markerfacecolor=CHROME["surface"],
+                               markeredgecolor=INK["muted"], markeredgewidth=1.6))
     legend_labels.append("published")
-    fig.legend(legend_items, legend_labels, loc="lower center", ncol=min(6, len(legend_items)), bbox_to_anchor=(0.5, -0.02))
+    fig.legend(legend_items, legend_labels, loc="lower center", ncol=len(legend_items), bbox_to_anchor=(0.5, -0.01))
     fig.suptitle(f"{model} — perplexity by weight precision", x=0.01, ha="left", fontsize=12, color=INK["primary"])
-    fig.tight_layout(rect=(0, 0.07, 1, 0.96))
+    fig.tight_layout(rect=(0, 0.05, 1, 0.96))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
     plt.close(fig)
