@@ -118,6 +118,7 @@ def cmd_env_check(args: argparse.Namespace) -> int:
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
+    from .data.calibration import CalibSpec
     from .eval.run_eval import run_single_eval
 
     row = run_single_eval(
@@ -133,6 +134,12 @@ def cmd_eval(args: argparse.Namespace) -> int:
         bits=args.bits,
         group_size=args.group_size,
         sym=args.sym,
+        act_order=args.act_order,
+        true_sequential=args.true_sequential,
+        percdamp=args.percdamp,
+        calib=CalibSpec(args.calib, args.nsamples, args.calib_seqlen, args.seed),
+        eval_mode=args.eval_mode,
+        window_batch=args.stream_window_batch,
         write=not args.no_write,
     )
     print(json.dumps(row, indent=2, default=str))
@@ -166,12 +173,24 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--max-windows", type=int, default=None)
     p_eval.add_argument("--ce-chunk", type=int, default=256, help="0 disables chunking")
     p_eval.add_argument("--dtype", default=None, help="override the family dtype policy")
-    p_eval.add_argument("--algo", default="fp", choices=["fp", "rtn"])
+    p_eval.add_argument("--algo", default="fp", choices=["fp", "rtn", "gptq"])
     p_eval.add_argument("--bits", type=int, default=16)
     p_eval.add_argument(
         "--group-size", type=int, default=-1, help="-1 for per-row, else 128 / 64"
     )
     p_eval.add_argument("--sym", action="store_true", help="symmetric quantization")
+    p_eval.add_argument("--act-order", action="store_true", help="GPTQ act-order")
+    p_eval.add_argument("--true-sequential", action="store_true", help="GPTQ true-sequential")
+    p_eval.add_argument("--percdamp", type=float, default=0.01)
+    p_eval.add_argument("--calib", default="c4", help="c4 | wikitext2 | pile_val")
+    p_eval.add_argument("--nsamples", type=int, default=128)
+    p_eval.add_argument("--calib-seqlen", type=int, default=2048)
+    p_eval.add_argument("--seed", type=int, default=0)
+    p_eval.add_argument(
+        "--eval-mode", default="auto", choices=["auto", "resident", "streamed"],
+        help="auto picks streamed when free VRAM < 1.3 x model bytes (PLAN.md 2a)",
+    )
+    p_eval.add_argument("--stream-window-batch", type=int, default=32)
     p_eval.add_argument("--no-write", action="store_true", help="do not write results/runs/*.json")
     p_eval.set_defaults(func=cmd_eval)
 

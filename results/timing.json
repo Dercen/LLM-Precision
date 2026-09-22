@@ -12,6 +12,29 @@
         "dataset": "wikitext2",
         "ce_chunk": 256,
         "peak_vram_gb": 0.348
+      },
+      "facebook/opt-350m|torch.float16|resident": {
+        "seconds_per_window": 0.104,
+        "n_windows_measured": 24,
+        "dataset": "wikitext2",
+        "ce_chunk": 256,
+        "peak_vram_gb": 0.727
+      },
+      "facebook/opt-350m|torch.float16|streamed": {
+        "seconds_per_window": 0.158,
+        "n_windows_measured": 24,
+        "dataset": "wikitext2",
+        "ce_chunk": 256,
+        "peak_vram_gb": 0.226,
+        "window_batch": 8,
+        "note": "true offload: weights in host RAM, one block on the card at a time"
+      },
+      "HuggingFaceTB/SmolLM2-135M|torch.float16|resident": {
+        "seconds_per_window": 0.088,
+        "n_windows_measured": 24,
+        "dataset": "wikitext2",
+        "ce_chunk": 256,
+        "peak_vram_gb": 0.355
       }
     },
     "quantization": {
@@ -19,6 +42,30 @@
         "quant_seconds": 0.12,
         "n_modules": 72,
         "note": "data-free; independent of bits and group_size"
+      },
+      "facebook/opt-125m|gptq": {
+        "quant_seconds_resident": 18.9,
+        "quant_seconds_offloaded": 35.7,
+        "n_modules": 72,
+        "calib": "c4 128x2048",
+        "peak_vram_gb_resident": 1.165,
+        "peak_vram_gb_offloaded": 1.014,
+        "cache_device": "cuda:0",
+        "note": "per-row; grouped and act_order not yet timed",
+        "quant_seconds_act_order": null
+      },
+      "facebook/opt-350m|gptq": {
+        "quant_seconds_resident_4bit": 95.5,
+        "quant_seconds_resident_3bit": 58.6,
+        "n_modules": 144,
+        "calib": "c4 128x2048"
+      },
+      "HuggingFaceTB/SmolLM2-135M|gptq": {
+        "quant_seconds_resident": 36.1,
+        "quant_seconds_act_order": 38.4,
+        "quant_seconds_true_sequential": 57.4,
+        "n_modules": 210,
+        "calib": "c4 128x2048"
       }
     }
   }

@@ -9,8 +9,10 @@ from typing import Any
 
 from .. import device as D
 from .. import paths, provenance
+from ..data import calibration as calib_mod
 from ..data import datasets as ds
 from ..models import loader as ml
+from ..quantizers import gptq as gptq_mod
 from ..quantizers import rtn as rtn_mod
 from . import perplexity as ppl
 
@@ -46,6 +48,12 @@ def run_single_eval(
     bits: int = 16,
     group_size: int = -1,
     sym: bool = False,
+    act_order: bool = False,
+    true_sequential: bool = False,
+    percdamp: float = 0.01,
+    calib: calib_mod.CalibSpec | None = None,
+    eval_mode: str = "auto",
+    window_batch: int = 32,
     write: bool = True,
 ) -> dict[str, Any]:
     paths.ensure_dirs()
@@ -53,7 +61,16 @@ def run_single_eval(
     device = D.resolve(device_spec)
 
     started = provenance.utc_now()
-    loaded = ml.load(model_id, device=device, dtype=ml.parse_dtype(dtype_override))
+    # Resident: load straight onto the device. Streamed: keep the weights in host
+    # RAM and let eval/streaming.py move one block at a time (PLAN.md 2a, 5c).
+    model_dtype = ml.parse_dtype(dtype_override) or D.dtype_for(model_id, device)
+    if eval_mode == "auto":
+        est = ml.estimate_model_bytes(model_id, model_dtype)
+        eval_mode = "streamed" if D.should_stream(est, device) else "resident"
+    if eval_mode not in ("resident", "streamed"):
+        raise ValueError(f"eval_mode must be auto|resident|streamed, got {eval_mode!r}")
+    resident = eval_mode == "resident"
+    loaded = ml.load(model_id, device=device, dtype=model_dtype, to_device=resident)
 
     quant_fields: dict[str, Any] = {
         "algo": "fp",
@@ -62,25 +79,39 @@ def run_single_eval(
         "sym": None,
         "quant_seconds": 0.0,
     }
+    calib_fields: dict[str, Any] = {"calib": None, "calib_fingerprint": None}
+
     if algo == "fp":
         pass
     elif algo == "rtn":
-        report = rtn_mod.apply_rtn(
-            loaded.model, bits=bits, group_size=group_size, sym=sym
+        report = rtn_mod.apply_rtn(loaded.model, bits=bits, group_size=group_size, sym=sym)
+        quant_fields = report.as_row_fields()
+    elif algo == "gptq":
+        spec = calib or calib_mod.CalibSpec()
+        windows = calib_mod.build(loaded.tokenizer, spec)
+        calib_fields = {**spec.as_row_fields(), "calib_fingerprint": calib_mod.fingerprint(windows)}
+        gspec = gptq_mod.GPTQSpec(
+            bits=bits, group_size=group_size, sym=sym, act_order=act_order,
+            true_sequential=true_sequential, percdamp=percdamp,
+        )
+        report = gptq_mod.apply_gptq(
+            loaded.model, windows, spec=gspec, device=device, offload=not resident
         )
         quant_fields = report.as_row_fields()
     else:
-        raise ValueError(f"unknown algo {algo!r}; available: fp, rtn")
+        raise ValueError(f"unknown algo {algo!r}; available: fp, rtn, gptq")
 
     stream = ds.build(dataset_key, loaded.tokenizer, seqlen=seqlen)
 
-    result = ppl.evaluate(
-        loaded.model,
-        stream,
-        device=device,
-        max_windows=max_windows,
-        ce_chunk=ce_chunk,
-    )
+    if resident:
+        result = ppl.evaluate(
+            loaded.model, stream, device=device, max_windows=max_windows, ce_chunk=ce_chunk
+        )
+    else:
+        result = ppl.evaluate_streamed(
+            loaded.model, stream, device=device, max_windows=max_windows,
+            ce_chunk=ce_chunk, window_batch=window_batch, offload=True,
+        )
 
     quant_key = _run_id(
         {
@@ -90,6 +121,10 @@ def run_single_eval(
             "bits": quant_fields["bits"],
             "group_size": quant_fields["group_size"],
             "sym": quant_fields["sym"],
+            "act_order": quant_fields.get("act_order"),
+            "true_sequential": quant_fields.get("true_sequential"),
+            "percdamp": quant_fields.get("percdamp"),
+            "calib": calib_fields["calib"],
             "dtype": str(loaded.dtype),
         }
     )
@@ -129,6 +164,7 @@ def run_single_eval(
         "attn_implementation": loaded.attn_implementation,
         "model_bytes": loaded.model_bytes,
         **quant_fields,
+        **calib_fields,
         **result.as_row_fields(),
         "paper_comparable": paper_comparable,
         "status": "ok",
