@@ -91,6 +91,9 @@ while the `_new` keys match to 0.1% on two independent columns each. See PLAN.md
 
 ## Easiest way in: the wizard
 
+Double-click **`PTQ Wizard.desktop`** at the project root (or `launch-wizard.sh`); it opens a terminal,
+sets up the environment on first use, and starts the menus. From a shell:
+
 ```bash
 source scripts/env.sh
 uv run ptq            # or: uv run ptq wizard
