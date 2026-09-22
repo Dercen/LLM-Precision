@@ -104,20 +104,43 @@ runs 20 windows (marked partial) when you just want a look. A wizard row is the 
 `ptq run` would produce — same ids, same schema — so it lands in `results/runs/` and shows
 up in `ptq aggregate` and `ptq plot`. Add `--device cpu` to try it while the GPU is busy.
 
-## Quick start
+## Quick start (new machine)
+
+Linux with an NVIDIA GPU; check the driver with `nvidia-smi` first.
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source scripts/env.sh
-uv sync --extra cu130 --extra hqq --extra dev    # --extra cpu on a machine without CUDA
-uv run ptq env-check
-uv run ptq eval --model facebook/opt-125m --dataset wikitext2
-uv run pytest -q
+# 1. tools
+curl -LsSf https://astral.sh/uv/install.sh | sh          # uv: Python + environment manager
+export PATH="$HOME/.local/bin:$PATH"
+
+# 2. code
+git clone https://github.com/Dercen/LLM-Precision.git
+cd LLM-Precision
+
+# 3. environment (one-time; ~3 GB of wheels, torch build chosen by extra)
+source scripts/env.sh                                    # cache paths under ~/ml (or $SCRATCH), hqq's build flag
+uv sync --extra cu130 --extra hqq --extra dev            # driver older than R580: --extra cu126; no GPU: --extra cpu
+
+# 4. check
+uv run ptq env-check                                     # torch+cu130, the GPU, TF32 off
+uv run pytest -q -m "smoke and not gpu"                  # ~1 min; downloads opt-125m and wikitext2
+
+# 5. use
+uv run ptq                                               # the wizard
 ```
 
-`scripts/env.sh` is safe to source repeatedly and works unchanged on a cluster
-(it picks up `$SCRATCH` when set). `DISABLE_CUDA=1` in it is **hqq's build flag**,
-not a torch flag — `ptq env-check` asserts CUDA is live so it cannot regress unnoticed.
+- `source scripts/env.sh` is needed in **every new shell** (or add it to `~/.bashrc`); it is
+  safe to repeat. `DISABLE_CUDA=1` inside it is **hqq's build flag**, not a torch flag —
+  `ptq env-check` asserts CUDA is live so that can never regress unnoticed.
+- Nothing assumes this laptop: resident vs streamed, cache placement and time estimates
+  are decided from the machine at run time, so a bigger or smaller GPU just moves where
+  models stream.
+- Models and datasets download on first use into `~/ml/hf` (`$SCRATCH/hf` on a cluster).
+  `uv run ptq prefetch configs/experiments/<name>.yaml` fetches everything an experiment
+  needs up front — do that before a queued or offline job.
+- Result rows are one JSON file each under `results/runs/`, so rows from several machines
+  merge by plain git or rsync and `uv run ptq aggregate` dedupes them by `run_id`.
+- Cluster specifics (SLURM script, `--shard k/n` across GPUs, offline flags): `docs/SERVER.md`.
 
 ## Adding a model
 
