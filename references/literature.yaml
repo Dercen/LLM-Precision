@@ -78,12 +78,12 @@ rows:
   - {model: facebook/opt-350m, dataset_key: c4_new,  algo: gptq, bits: 3,  group_size: -1, ppl: 31.33, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
   - {model: facebook/opt-1.3b, dataset_key: wikitext2, algo: rtn, bits: 3, group_size: -1, ppl: 13000.0, source: gptq, table: "3", approximate: true}
   - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: fp,   bits: 16, group_size: null, ppl: 20.29, source: gptq, table: "9", resolved_from: ptb}
-  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 57.30, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 57.30, source: gptq, table: "9", resolved_from: ptb, unreproduced: "measured 75.33 / 27.49 on 2026-09-22 with weights that match Table 3 wikitext2 to 0.03%; stable across sdpa/eager and fp16/fp32"}
   - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: gptq, bits: 4,  group_size: -1, ppl: 21.85, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
   - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: rtn,  bits: 3,  group_size: -1, ppl: 13000.0, source: gptq, table: "9", approximate: true, resolved_from: ptb}
   - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: gptq, bits: 3,  group_size: -1, ppl: 32.10, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
   - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: fp,   bits: 16, group_size: null, ppl: 16.07, source: gptq, table: "11", resolved_from: c4}
-  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: rtn,  bits: 4,  group_size: -1, ppl: 24.51, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: rtn,  bits: 4,  group_size: -1, ppl: 24.51, source: gptq, table: "11", resolved_from: c4, unreproduced: "measured 75.33 / 27.49 on 2026-09-22 with weights that match Table 3 wikitext2 to 0.03%; stable across sdpa/eager and fp16/fp32"}
   - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: gptq, bits: 4,  group_size: -1, ppl: 16.97, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
   - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: rtn,  bits: 3,  group_size: -1, ppl: 5200.0, source: gptq, table: "11", approximate: true, resolved_from: c4}
   - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: gptq, bits: 3,  group_size: -1, ppl: 21.63, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}

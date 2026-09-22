@@ -15,8 +15,8 @@ for the web-verified version pins and reference numbers behind it.
 | M1 First number | done |
 | M2 Data + RTN + schema + CI | done |
 | M3 GPTQ + block streaming | done |
-| M4 Runner + plots + AWQ-lite + HQQ | code done; `resident_full` matrix running |
-| M5 opt-6.7b streamed | fp16 gate passed; quantized rows next |
+| M4 Runner + plots + AWQ-lite + HQQ | done — 436-row resident matrix, 0 failures |
+| M5 opt-6.7b streamed | fp16 gate passed; quantized gate running |
 
 ### Reproduced published numbers (opt-125m, fp16 on an RTX 4070)
 
@@ -39,6 +39,22 @@ for the web-verified version pins and reference numbers behind it.
 
 The opt-6.7b row is the point of the streamed tier: 13.3 GB of fp16 weights evaluated on an
 8 GB GPU at a peak of 1.95 GB VRAM, matching the published number to four decimals.
+
+### The resident matrix (five models × five methods × four bit widths × three datasets)
+
+436 rows, 61 of them against a published number: fp16 within 0.04% everywhere, GPTQ within
+1.2% on average, opt-2.7b GPTQ4 per-row 12.917 vs 12.87. Full tables in `results/summary.md`,
+figures in `results/plots/`. Two published RTN cells (OPT-1.3B on PTB and C4) could not be
+reproduced despite the same weights matching on WikiText-2 — see PLAN.md §13.
+
+4-bit g128 on WikiText-2 (lower is better):
+
+| model | fp16 | RTN | GPTQ | AWQ-lite | HQQ |
+|---|---|---|---|---|---|
+| opt-125m | 27.66 | 30.48 | 29.45 | **29.30** | 30.54 |
+| opt-350m | 22.00 | 24.51 | **23.21** | 23.60 | 24.24 |
+| opt-1.3b | 14.62 | 15.29 | **14.87** | 15.00 | 15.14 |
+| opt-2.7b | 12.47 | 13.02 | **12.62** | 12.86 | 13.28 |
 
 opt-350m lands the same way: fp16 22.0017 / 22.00, RTN4 25.9412 / 25.94, GPTQ4 24.3851 / 24.24,
 RTN3 64.5576 / 64.57, GPTQ3 32.7896 / 33.79. Three calibration seeds on opt-125m GPTQ4 give

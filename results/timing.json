@@ -6,19 +6,18 @@
     "measured_at": "2026-09-21",
     "entries": {
       "facebook/opt-125m|torch.float16|resident": {
-        "seconds_per_window": 0.0234,
-        "windows_per_second": 42.8,
-        "n_windows_measured": 140,
-        "dataset": "wikitext2",
-        "ce_chunk": 256,
-        "peak_vram_gb": 0.348
+        "seconds_per_window": 0.0233,
+        "windows_measured": 13290,
+        "rows": 90,
+        "peak_vram_gb": 0.349,
+        "source": "derived"
       },
       "facebook/opt-350m|torch.float16|resident": {
-        "seconds_per_window": 0.104,
-        "n_windows_measured": 24,
-        "dataset": "wikitext2",
-        "ce_chunk": 256,
-        "peak_vram_gb": 0.727
+        "seconds_per_window": 0.0513,
+        "windows_measured": 13290,
+        "rows": 90,
+        "peak_vram_gb": 0.725,
+        "source": "derived"
       },
       "facebook/opt-350m|torch.float16|streamed": {
         "seconds_per_window": 0.158,
@@ -30,38 +29,32 @@
         "note": "true offload: weights in host RAM, one block on the card at a time"
       },
       "HuggingFaceTB/SmolLM2-135M|torch.float16|resident": {
-        "seconds_per_window": 0.088,
-        "n_windows_measured": 24,
-        "dataset": "wikitext2",
-        "ce_chunk": 256,
-        "peak_vram_gb": 0.355
+        "seconds_per_window": 0.0327,
+        "windows_measured": 11275,
+        "rows": 75,
+        "peak_vram_gb": 0.355,
+        "source": "derived"
       },
       "facebook/opt-1.3b|torch.float16|resident": {
         "seconds_per_window": 0.1575,
-        "n_windows_measured": 140,
-        "dataset": "wikitext2",
-        "ce_chunk": 256,
+        "windows_measured": 13290,
+        "rows": 90,
         "peak_vram_gb": 2.564,
-        "load_seconds": 2.2
+        "source": "derived"
       },
       "facebook/opt-2.7b|torch.float16|resident": {
-        "seconds_per_window": 0.2961,
-        "n_windows_measured": 140,
-        "dataset": "wikitext2",
-        "ce_chunk": 256,
+        "seconds_per_window": 0.2983,
+        "windows_measured": 13290,
+        "rows": 90,
         "peak_vram_gb": 5.065,
-        "load_seconds": 3.5
+        "source": "derived"
       },
       "facebook/opt-6.7b|torch.float16|streamed": {
-        "seconds_per_window": 1.24,
-        "n_windows_measured": 140,
-        "dataset": "wikitext2",
-        "ce_chunk": 256,
-        "window_batch": 32,
-        "cache_device": "cuda:0",
+        "seconds_per_window": 1.2398,
+        "windows_measured": 140,
+        "rows": 1,
         "peak_vram_gb": 1.954,
-        "peak_ram_gb": 13.144,
-        "note": "measured with the GPU test suite running concurrently for part of the run; likely ~20-30% pessimistic"
+        "source": "derived"
       }
     },
     "quantization": {
@@ -71,29 +64,87 @@
         "note": "data-free; independent of bits and group_size"
       },
       "facebook/opt-125m|gptq": {
-        "quant_seconds_resident": 18.9,
-        "quant_seconds_offloaded": 35.7,
-        "n_modules": 72,
-        "calib": "c4 128x2048",
-        "peak_vram_gb_resident": 1.165,
-        "peak_vram_gb_offloaded": 1.014,
-        "cache_device": "cuda:0",
-        "note": "per-row; grouped and act_order not yet timed",
-        "quant_seconds_act_order": null
+        "quant_seconds": 17.1,
+        "n_configs": 9,
+        "min": 17.0,
+        "max": 17.2,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 17.1
       },
       "facebook/opt-350m|gptq": {
-        "quant_seconds_resident_4bit": 95.5,
-        "quant_seconds_resident_3bit": 58.6,
-        "n_modules": 144,
-        "calib": "c4 128x2048"
+        "quant_seconds": 55.1,
+        "n_configs": 9,
+        "min": 54.5,
+        "max": 55.4,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 55.1
       },
       "HuggingFaceTB/SmolLM2-135M|gptq": {
-        "quant_seconds_resident": 36.1,
-        "quant_seconds_act_order": 38.4,
-        "quant_seconds_true_sequential": 57.4,
-        "n_modules": 210,
-        "calib": "c4 128x2048"
+        "quant_seconds": 25.4,
+        "n_configs": 8,
+        "min": 25.2,
+        "max": 25.8,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 25.4
+      },
+      "facebook/opt-1.3b|gptq": {
+        "quant_seconds": 171.7,
+        "n_configs": 9,
+        "min": 170.7,
+        "max": 173.9,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 171.7
+      },
+      "facebook/opt-125m|awq_lite": {
+        "quant_seconds": 11.7,
+        "n_configs": 2,
+        "min": 11.7,
+        "max": 11.7,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 11.7
+      },
+      "facebook/opt-350m|awq_lite": {
+        "quant_seconds": 32.4,
+        "n_configs": 2,
+        "min": 32.3,
+        "max": 32.5,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 32.4
+      },
+      "facebook/opt-1.3b|awq_lite": {
+        "quant_seconds": 176.7,
+        "n_configs": 2,
+        "min": 176.1,
+        "max": 177.3,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 176.7
+      },
+      "facebook/opt-2.7b|gptq": {
+        "quant_seconds": 342.3,
+        "n_configs": 9,
+        "min": 341.0,
+        "max": 343.2,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 342.3
+      },
+      "facebook/opt-2.7b|awq_lite": {
+        "quant_seconds": 376.4,
+        "n_configs": 2,
+        "min": 375.6,
+        "max": 377.2,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 376.4
       }
-    }
+    },
+    "derived_at": "2026-09-22T02:40:21"
   }
 }
