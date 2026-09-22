@@ -1,0 +1,11 @@
+# M5 gate first (PLAN.md 10): fp16 10.86 +/-0.03, RTN4 per-row 12.10 +/-0.05,
+# GPTQ4 per-row 11.39 +/-0.15 on wikitext2; ptb_new / c4_new advisory. The full
+# grid is streamed_opt67b.yaml and runs after this passes.
+extends: base.yaml
+name: streamed_opt67b_gate
+models: [opt-6.7b]
+eval: {seqlen: 2048, ce_chunk: 256, eval_mode: streamed, window_batch: 32}
+grid:
+  - {algo: fp}
+  - {algo: rtn,  cells: [{bits: [4], group_size: [-1]}]}
+  - {algo: gptq, cells: [{bits: [4], group_size: [-1]}]}
