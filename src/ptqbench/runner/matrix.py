@@ -227,7 +227,7 @@ def _prepare_with_ladder(run: C.RunSpec, device: torch.device, use_cache: bool, 
         if device.type != "cuda" or X.choose_eval_mode(X.resolve_run(run, device), device) == "streamed":
             raise
         message = str(exc)[:80]
-        exc = None  # noqa: F841 - release the traceback and everything it pins
+        exc = None  # release the traceback and everything it pins
     _release_device_memory(device)
     log(f"    OOM resident ({message}); retrying streamed with {D.vram_available_bytes(device) / 1024**3:.1f} GB free")
     return X.prepare(run, device, use_quant_cache=use_cache, deterministic=deterministic, eval_mode="streamed")
