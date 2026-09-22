@@ -29,7 +29,6 @@ from torch import nn
 from .. import device as D
 from ..models import families
 
-
 CACHE_ON_DEVICE_FRACTION = 0.6
 
 
