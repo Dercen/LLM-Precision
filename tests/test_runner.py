@@ -135,3 +135,15 @@ def test_timing_is_derived_from_rows(tmp_path):
     out = timing.refresh(rows, path=tmp_path / "timing.json", hostname="h")
     data = json.loads(out.read_text())
     assert data["h"]["quantization"]["m|gptq"]["quant_seconds_resident"] == 300.0
+
+
+def test_resolve_run_falls_back_to_the_mirror_when_gated(monkeypatch):
+    spec = C.load_model("llama-2-7b")
+    run = C.RunSpec(model=spec, quant=C.QuantSpec(algo="fp"), dataset="wikitext2")
+    monkeypatch.setattr(X, "repo_is_fetchable", lambda repo: False)
+    resolved = X.resolve_run(run, CPU)
+    assert resolved.model.repo == spec.mirror and resolved.model.canonical_repo == spec.repo
+    row = X.status_row(resolved, CPU, "skipped", "test")
+    assert row["model"] == "meta-llama/Llama-2-7b-hf" and row["loaded_from"] == spec.mirror
+    monkeypatch.setattr(X, "repo_is_fetchable", lambda repo: True)
+    assert X.resolve_run(run, CPU).model.repo == spec.repo

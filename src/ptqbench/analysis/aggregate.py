@@ -19,7 +19,7 @@ import yaml
 from .. import paths
 
 ROW_COLUMNS = [
-    "run_id", "quant_key", "model", "dataset", "algo", "bits", "group_size", "sym",
+    "run_id", "quant_key", "model", "loaded_from", "dataset", "algo", "bits", "group_size", "sym",
     "act_order", "true_sequential", "calib", "dtype", "eval_mode", "ppl", "nll_sum",
     "n_tokens", "n_windows", "partial", "paper_comparable", "quant_seconds",
     "eval_seconds", "peak_vram_gb", "peak_ram_gb", "status", "reason", "device_name",

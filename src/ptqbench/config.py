@@ -100,11 +100,15 @@ class ModelSpec(BaseModel):
     key: str
     repo: str
     mirror: str | None = None
+    mirror_revision: str | None = None
     gated: bool = False
     tokenizer_class: str
     dtype: str = "auto"
     revision: str | None = None
     family: str | None = None
+    #: The repo the row is filed under (literature join); `repo` is what gets loaded.
+    #: Differs only after `with_mirror()` substituted an ungated mirror for a gated repo.
+    canonical: str | None = None
     #: Extra group sizes this model gets on top of the grid's (SmolLM2: 576 = 9 x 64).
     extra_group_sizes: list[int] = Field(default_factory=list)
     notes: str | None = None
@@ -112,6 +116,18 @@ class ModelSpec(BaseModel):
     @property
     def load_id(self) -> str:
         return self.repo
+
+    @property
+    def canonical_repo(self) -> str:
+        return self.canonical or self.repo
+
+    def with_mirror(self) -> ModelSpec:
+        """This spec pointed at its mirror, keeping the canonical id for the join."""
+        if not self.mirror:
+            raise ValueError(f"{self.key} has no mirror configured")
+        return self.model_copy(update={
+            "repo": self.mirror, "revision": self.mirror_revision, "canonical": self.canonical_repo,
+        })
 
 
 class RunSpec(BaseModel):
@@ -124,6 +140,8 @@ class RunSpec(BaseModel):
 
     @property
     def quant_key(self) -> str:
+        # Hashes the repo actually loaded: mirror weights are different weights until
+        # their SHA-equivalence to the official repo is verified (PLAN.md 8).
         payload = {
             "model": self.model.repo,
             "revision": self.model.revision or "unpinned",

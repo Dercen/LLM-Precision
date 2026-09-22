@@ -81,3 +81,14 @@ def test_every_model_config_loads():
     for path in sorted((paths.configs_dir() / "models").glob("*.yaml")):
         spec = C.load_model(path.stem)
         assert spec.repo and spec.tokenizer_class
+
+
+def test_mirror_substitution_keeps_the_canonical_id():
+    spec = C.load_model("llama-2-7b")
+    assert spec.gated and spec.mirror and spec.mirror_revision
+    m = spec.with_mirror()
+    assert m.repo == spec.mirror and m.revision == spec.mirror_revision
+    assert m.canonical_repo == "meta-llama/Llama-2-7b-hf"
+    official = C.RunSpec(model=spec, quant=C.QuantSpec(algo="fp"), dataset="wikitext2", dtype="torch.float16")
+    mirrored = official.model_copy(update={"model": m})
+    assert official.quant_key != mirrored.quant_key, "mirror weights are different weights until verified"

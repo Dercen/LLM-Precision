@@ -36,10 +36,30 @@ class Prepared:
 
 
 def resolve_run(run: C.RunSpec, device: torch.device) -> C.RunSpec:
-    """Fill in the dtype the device policy picks, so quant_key reflects the real dtype."""
+    """Fill in the dtype the device policy picks, so quant_key reflects the real dtype,
+    and swap a gated repo for its mirror when the weights cannot be fetched."""
+    if run.model.gated and run.model.mirror and not run.model.canonical and not repo_is_fetchable(run.model.repo):
+        run = run.model_copy(update={"model": run.model.with_mirror()})
     if run.dtype == "auto":
-        return run.model_copy(update={"dtype": str(D.dtype_for(run.model.repo, device))})
+        return run.model_copy(update={"dtype": str(D.dtype_for(run.model.canonical_repo, device))})
     return run
+
+
+_FETCHABLE: dict[str, bool] = {}
+
+
+def repo_is_fetchable(repo: str) -> bool:
+    """A real (tiny) download: `model_info` succeeds on gated repos, only files are gated."""
+    if repo in _FETCHABLE:
+        return _FETCHABLE[repo]
+    try:
+        from huggingface_hub import hf_hub_download
+
+        hf_hub_download(repo, "config.json", cache_dir=str(paths.hf_home()))
+        _FETCHABLE[repo] = True
+    except Exception:  # noqa: BLE001 - gated, missing, offline: all mean "use the mirror"
+        _FETCHABLE[repo] = False
+    return _FETCHABLE[repo]
 
 
 def choose_eval_mode(run: C.RunSpec, device: torch.device) -> str:
@@ -146,8 +166,9 @@ def evaluate(prep: Prepared, run: C.RunSpec, *, progress: bool = True) -> dict[s
         "run_id": run.run_id,
         "quant_key": run.quant_key,
         "protocol_version": C.PROTOCOL_VERSION,
-        "model": run.model.repo,
+        "model": run.model.canonical_repo,
         "model_key": run.model.key,
+        "loaded_from": run.model.repo,
         "model_revision": prep.loaded.revision,
         "tokenizer_class": prep.loaded.tokenizer_class,
         "backend": "torch",
@@ -189,8 +210,9 @@ def status_row(run: C.RunSpec, device: torch.device, status: str, reason: str, *
         "run_id": run.run_id,
         "quant_key": run.quant_key,
         "protocol_version": C.PROTOCOL_VERSION,
-        "model": run.model.repo,
+        "model": run.model.canonical_repo,
         "model_key": run.model.key,
+        "loaded_from": run.model.repo,
         "dataset": run.dataset,
         **run.quant.model_dump(),
         "calib": run.calib.model_dump() if run.calib else None,

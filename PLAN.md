@@ -490,7 +490,7 @@ Rewritten: every Windows and OneDrive risk is deleted, and the new ones are all 
 | transformers 5 `dtype="auto"` picks the wrong dtype | loader always passes an explicit dtype; fp16 for OPT and Llama-2, bf16 for Llama-3.1 |
 | Grid loses precision on an fp16 model | the reference grid runs in fp32 with an explicit `W.float()` / `.to(dtype)` round-trip; GPU-vs-CPU parity test |
 | GPTQ Catcher misses Llama kwargs | verbatim `*args/**kwargs` replay; SmolLM2-135M gate at M3 before any 7B Llama |
-| Llama gating latency | applications filed at M0, needed at M6; ungated mirrors with `gated: false` in `configs/models`, repo and commit recorded on every row |
+| Llama gating latency | **Status 2026-09-22: no Hugging Face login on this machine** (`hf auth whoami` → not logged in; the M0 license step is still open and needs the user: `uv run hf auth login`, then accept the Llama-2 and Llama-3.1 licences on the Hub). Checked with a real download: `meta-llama/Llama-2-7b-hf` and `meta-llama/Llama-3.1-8B` are gated; the mirrors `NousResearch/Llama-2-7b-hf` and `unsloth/Meta-Llama-3.1-8B` download today. M6 therefore runs on the mirrors, with the mirror id and commit on every row, and re-runs on the official repos become a cheap upgrade once access exists — a repeated fp16 cell is the SHA-equivalence check the plan asked for |
 | Crash mid-write; concurrent writers | tmp file plus `os.replace`; one JSON per `run_id` |
 | PTB / C4 paper protocol unstated | `protocol_uncertain: true`; both variants run at M2; wikitext2 is the only hard gate |
 | awq_lite rows mislabeled comparable | `paper_comparable=false` unless pile_val 128×512 calibration; `calib` participates in the literature join |
