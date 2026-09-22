@@ -163,7 +163,23 @@ def prepare(
     if cache_ok and q.algo != "fp" and float(quant_fields.get("quant_seconds", 0)) >= cache_min_seconds:
         quant_cache.save(loaded.model, run.quant_key, {"run": run.model_dump(), "quant_fields": quant_fields, "calib_fields": calib_fields})
         quant_fields["quant_cache_hit"] = False
+    resident = _promote_to_resident(loaded, run, device, resident)
     return Prepared(loaded, device, resident, quant_fields, calib_fields, numerics)
+
+
+def _promote_to_resident(loaded: ml.LoadedModel, run: C.RunSpec, device: torch.device, resident: bool) -> bool:
+    """A model streamed only because its quantizer needed the room evaluates resident.
+
+    opt-2.7b quantizes streamed (Hessians) but fits on the card for evaluation; the
+    number is identical either way (PLAN.md 5c), evaluation is ~4x faster resident.
+    """
+    if resident or device.type != "cuda" or run.eval.eval_mode != "auto":
+        return resident
+    if D.should_stream(loaded.model_bytes, device):
+        return False
+    loaded.model.to(device)
+    torch.cuda.empty_cache()
+    return True
 
 
 def evaluate(prep: Prepared, run: C.RunSpec, *, progress: bool = True) -> dict[str, Any]:
