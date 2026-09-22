@@ -63,10 +63,33 @@ def repo_is_fetchable(repo: str) -> bool:
 
 
 def choose_eval_mode(run: C.RunSpec, device: torch.device) -> str:
+    """PLAN.md 2a's rule, plus what the quantizer itself needs on the card.
+
+    The eval-only rule said opt-2.7b (4.93 GB) is resident, and it is -- for evaluation.
+    GPTQ adds two in_features^2 fp32 Hessian buffers (0.84 GB for its fc2) and AWQ-lite
+    its scoring temporaries, which put the same model over the edge: eleven OOMs in the
+    first resident_full run, 2026-09-22. Data-dependent methods count those extras.
+    """
     if run.eval.eval_mode != "auto":
         return run.eval.eval_mode
-    est = ml.estimate_model_bytes(run.model.repo, ml.parse_dtype(_short_dtype(run.dtype)) or torch.float16)
-    return "streamed" if D.should_stream(est, device) else "resident"
+    dtype = ml.parse_dtype(_short_dtype(run.dtype)) or torch.float16
+    est = ml.estimate_model_bytes(run.model.repo, dtype)
+    return "streamed" if D.should_stream(est + quantizer_extra_bytes(run), device) else "resident"
+
+
+def quantizer_extra_bytes(run: C.RunSpec) -> int:
+    """Device memory a quantizer needs beyond the weights, from config.json alone."""
+    if not run.quant.is_data_dependent():
+        return 0
+    from transformers import AutoConfig
+
+    cfg = AutoConfig.from_pretrained(run.model.repo, cache_dir=str(paths.hf_home()), revision=run.model.revision)
+    hidden = getattr(cfg, "hidden_size", 0)
+    ffn = getattr(cfg, "intermediate_size", None) or getattr(cfg, "ffn_dim", 0)
+    widest = max(hidden, ffn)
+    if run.quant.algo == "gptq":
+        return 2 * 4 * widest**2  # H and its Cholesky temporaries for the widest Linear
+    return 4 * 8192 * widest * 4  # awq_lite scoring temporaries (see awq_lite.apply_awq_lite)
 
 
 def _short_dtype(name: str) -> str:

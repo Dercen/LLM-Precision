@@ -214,15 +214,32 @@ def run_matrix(
 
 
 def _prepare_with_ladder(run: C.RunSpec, device: torch.device, use_cache: bool, deterministic: bool, log) -> X.Prepared:
-    """PLAN.md 9.4: on CUDA OOM, retry once streamed before giving up."""
+    """PLAN.md 9.4: on CUDA OOM, retry once streamed before giving up.
+
+    The retry must first actually release the failed attempt: a caught exception's
+    traceback keeps every frame -- and the half-loaded model in its locals -- alive,
+    so empty_cache() alone frees nothing and the retry OOMs the same way (all eleven
+    opt-2.7b retries did, 2026-09-22). Drop the exception, collect, then empty.
+    """
     try:
         return X.prepare(run, device, use_quant_cache=use_cache, deterministic=deterministic)
     except torch.OutOfMemoryError as exc:
         if device.type != "cuda" or X.choose_eval_mode(X.resolve_run(run, device), device) == "streamed":
             raise
-        log(f"    OOM resident ({str(exc)[:80]}); retrying streamed")
+        message = str(exc)[:80]
+        exc = None  # noqa: F841 - release the traceback and everything it pins
+    _release_device_memory(device)
+    log(f"    OOM resident ({message}); retrying streamed with {D.vram_available_bytes(device) / 1024**3:.1f} GB free")
+    return X.prepare(run, device, use_quant_cache=use_cache, deterministic=deterministic, eval_mode="streamed")
+
+
+def _release_device_memory(device: torch.device) -> None:
+    import gc
+
+    gc.collect()
+    if device.type == "cuda":
         torch.cuda.empty_cache()
-        return X.prepare(run, device, use_quant_cache=use_cache, deterministic=deterministic, eval_mode="streamed")
+        torch.cuda.synchronize(device)
 
 
 def list_groups(groups: list[tuple[str, list[C.RunSpec]]], *, rerun_incomplete: bool = False) -> list[dict[str, Any]]:

@@ -147,3 +147,21 @@ def test_resolve_run_falls_back_to_the_mirror_when_gated(monkeypatch):
     assert row["model"] == "meta-llama/Llama-2-7b-hf" and row["loaded_from"] == spec.mirror
     monkeypatch.setattr(X, "repo_is_fetchable", lambda repo: True)
     assert X.resolve_run(run, CPU).model.repo == spec.repo
+
+
+@pytest.mark.gpu
+def test_quantizers_count_their_own_memory_when_choosing_the_mode():
+    """opt-2.7b: resident for evaluation, streamed for GPTQ and AWQ-lite (PLAN.md 2a)."""
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA required")
+    dev = torch.device("cuda:0")
+    spec = C.load_model("opt-2.7b")
+    fp = X.resolve_run(C.RunSpec(model=spec, quant=C.QuantSpec(algo="fp"), dataset="wikitext2"), dev)
+    gptq = X.resolve_run(C.RunSpec(model=spec, quant=C.QuantSpec(algo="gptq", bits=4), calib=C.CalibSpec(), dataset="wikitext2"), dev)
+    assert X.quantizer_extra_bytes(fp) == 0
+    assert X.quantizer_extra_bytes(gptq) == 2 * 4 * 10240**2
+    # Budget-only decisions: independent of what is on the card right now.
+    est = __import__("ptqbench.models.loader", fromlist=["x"]).estimate_model_bytes(spec.repo, torch.float16)
+    from ptqbench import device as D
+    assert D.should_stream(est, dev, basis="capacity") is False
+    assert D.should_stream(est + X.quantizer_extra_bytes(gptq), dev, basis="capacity") is True
