@@ -190,7 +190,11 @@ def write_summary(df: pd.DataFrame, path: Path | None = None) -> Path:
     return path
 
 
-def aggregate(runs_dir: Path | None = None) -> tuple[Path, Path, pd.DataFrame]:
+def aggregate(runs_dir: Path | None = None, *, refresh_timing: bool = True) -> tuple[Path, Path, pd.DataFrame]:
     rows = dedupe(load_rows(runs_dir))
     df = build_table(rows)
+    if refresh_timing:
+        from . import timing
+
+        timing.refresh(rows)
     return write_csv(df), write_summary(df), df

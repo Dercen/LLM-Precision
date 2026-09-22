@@ -112,3 +112,26 @@ def test_smoke_matrix_end_to_end_on_gpu(tmp_path, monkeypatch):
     assert set(rows) == {"fp", "rtn", "gptq", "hqq"}
     assert rows["gptq"]["calib"]["dataset"] == "wikitext2"
     assert rows["gptq"]["ppl"] < rows["rtn"]["ppl"]
+
+
+def test_timing_is_derived_from_rows(tmp_path):
+    from ptqbench.analysis import timing
+
+    def row(model, algo, qkey, eval_s, n_win, quant_s, mode="resident", **kw):
+        return {"status": "ok", "partial": False, "model": model, "dtype": "torch.float16",
+                "eval_mode": mode, "algo": algo, "quant_key": qkey, "eval_seconds": eval_s,
+                "n_windows": n_win, "quant_seconds": quant_s, "peak_vram_gb": 1.0, **kw}
+
+    rows = [
+        row("m", "fp", "q0", 10.0, 100, 0.0),
+        row("m", "gptq", "q1", 20.0, 100, 300.0),
+        row("m", "gptq", "q1", 30.0, 200, 300.0),          # same quant_key: counted once
+        row("m", "gptq", "q2", 5.0, 50, 500.0, quant_cache_hit=True),  # cache hit: eval counts, quant does not
+        row("m", "gptq", "q3", 5.0, 50, 100.0, partial=True),          # partial: ignored entirely
+    ]
+    ev, q = timing.derive(rows)
+    assert ev["m|torch.float16|resident"]["seconds_per_window"] == round(65.0 / 450, 4)
+    assert q["m|gptq|resident"] == {"quant_seconds": 300.0, "n_configs": 1, "min": 300.0, "max": 300.0, "source": "derived"}
+    out = timing.refresh(rows, path=tmp_path / "timing.json", hostname="h")
+    data = json.loads(out.read_text())
+    assert data["h"]["quantization"]["m|gptq"]["quant_seconds_resident"] == 300.0
