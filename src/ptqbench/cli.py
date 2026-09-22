@@ -146,6 +146,78 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return OK
 
 
+def cmd_run(args: argparse.Namespace) -> int:
+    from .runner import matrix as M
+
+    if args.list:
+        groups = M.plan(args.experiment, filter_text=args.filter, shard=args.shard, index=args.index)
+        for g in M.list_groups(groups, rerun_incomplete=args.rerun_incomplete):
+            print(f"  [{g['index']:3d}] {g['label']:40s} {g['done']}/{g['total']} done  {g['quant_key']}  {','.join(g['datasets'])}")
+        print(f"{len(groups)} groups, {sum(g['total'] for g in M.list_groups(groups))} rows")
+        return OK
+    if args.dry_run:
+        groups = M.plan(args.experiment, filter_text=args.filter, shard=args.shard, index=args.index)
+        from .runner import execute as X
+
+        n_rows = sum(len(r) for _, r in groups)
+        pending = sum(1 for _, rs in groups for r in rs if not X.is_done(r, rerun_incomplete=args.rerun_incomplete))
+        secs, notes = M.estimate_seconds(groups)
+        print(f"n_groups={len(groups)} n_rows={n_rows} pending={pending} estimated_hours={secs / 3600:.2f}")
+        for n in notes:
+            print(f"  note: {n}")
+        return OK
+    summary = M.run_matrix(
+        args.experiment, filter_text=args.filter, shard=args.shard, index=args.index,
+        rerun_incomplete=args.rerun_incomplete, use_quant_cache=not args.no_quant_cache,
+        device_spec=args.device, deterministic=args.deterministic, progress=True,
+    )
+    print(
+        f"done: ok={summary.ok} skipped={summary.skipped} failed={summary.failed} "
+        f"already_done={summary.already_done} of {summary.n_runs} rows in {summary.seconds / 60:.1f} min"
+    )
+    return OK if summary.failed == 0 else FAILED_CHECK
+
+
+def cmd_aggregate(args: argparse.Namespace) -> int:
+    from .analysis.aggregate import aggregate
+
+    csv, md, df = aggregate()
+    complete = int(((df["status"] == "ok") & (~df["partial"].astype(bool))).sum()) if not df.empty else 0
+    joined = int(df["paper_ppl"].notna().sum()) if not df.empty else 0
+    print(f"{len(df)} rows ({complete} complete, {joined} joined to literature) -> {csv}\n{md}")
+    return OK
+
+
+def cmd_plot(args: argparse.Namespace) -> int:
+    from .analysis import plots
+
+    written = plots.plot_all(models=args.models)
+    for path in written:
+        print(path)
+    print(f"{len(written)} figure(s) -> {paths.plots_dir()}")
+    return OK
+
+
+def cmd_prefetch(args: argparse.Namespace) -> int:
+    from .runner import matrix as M
+
+    M.prefetch(args.experiment)
+    return OK
+
+
+def cmd_cache(args: argparse.Namespace) -> int:
+    from .runner import quant_cache as Q
+
+    if args.cache_command == "ls":
+        for path, size, _ in Q.entries():
+            print(f"  {size / 1024**3:6.2f} GB  {path.name}")
+        print(f"{len(Q.entries())} entries, {Q.total_bytes() / 1024**3:.2f} GB in {paths.quant_cache_dir()}")
+        return OK
+    removed = Q.gc(keep_newest=args.keep_newest, max_gb=args.max_gb)
+    print(f"removed {len(removed)} entries; {Q.total_bytes() / 1024**3:.2f} GB remain")
+    return OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ptq", description=__doc__)
     parser.add_argument("--device", default="auto", help="auto | cpu | cuda | cuda:N")
@@ -193,6 +265,36 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--stream-window-batch", type=int, default=32)
     p_eval.add_argument("--no-write", action="store_true", help="do not write results/runs/*.json")
     p_eval.set_defaults(func=cmd_eval)
+
+    p_run = sub.add_parser("run", help="run a YAML experiment matrix")
+    p_run.add_argument("experiment")
+    p_run.add_argument("--filter", default=None, help="e.g. 'algo=gptq,rtn bits=4 model=opt-125m'")
+    p_run.add_argument("--shard", default=None, help="k/n: take quant-key groups with index %% n == k")
+    p_run.add_argument("--index", type=int, default=None, help="run only group N")
+    p_run.add_argument("--list", action="store_true")
+    p_run.add_argument("--dry-run", action="store_true")
+    p_run.add_argument("--rerun-incomplete", action="store_true", help="retry failed and skipped rows")
+    p_run.add_argument("--no-quant-cache", action="store_true")
+    p_run.set_defaults(func=cmd_run)
+
+    p_agg = sub.add_parser("aggregate", help="results/runs -> results.csv + summary.md")
+    p_agg.set_defaults(func=cmd_aggregate)
+
+    p_plot = sub.add_parser("plot", help="results.csv -> results/plots/*.png")
+    p_plot.add_argument("--models", nargs="*", default=None, help="model keys to plot (default all)")
+    p_plot.set_defaults(func=cmd_plot)
+
+    p_pre = sub.add_parser("prefetch", help="download weights, datasets and calibration for an experiment")
+    p_pre.add_argument("experiment")
+    p_pre.set_defaults(func=cmd_prefetch)
+
+    p_cache = sub.add_parser("cache", help="inspect or evict the quantized-weight cache")
+    cache_sub = p_cache.add_subparsers(dest="cache_command", required=True)
+    cache_sub.add_parser("ls")
+    p_gc = cache_sub.add_parser("gc")
+    p_gc.add_argument("--keep-newest", type=int, default=None)
+    p_gc.add_argument("--max-gb", type=float, default=None)
+    p_cache.set_defaults(func=cmd_cache)
 
     return parser
 

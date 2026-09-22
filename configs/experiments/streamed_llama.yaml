@@ -1,0 +1,11 @@
+# The six PLAN.md 13-verified Llama-2 configurations first; the rest of the grid after.
+extends: base.yaml
+name: streamed_llama
+models: [llama-2-7b, llama-3.1-8b]
+datasets: [wikitext2]
+eval: {seqlen: 2048, ce_chunk: 256, eval_mode: streamed, window_batch: 32}
+grid:
+  - {algo: fp}
+  - {algo: rtn,  cells: [{bits: [4, 3], group_size: [128, -1]}, {bits: [2], group_size: [128, 64]}]}
+  - {algo: gptq, cells: [{bits: [4, 3], group_size: [128, -1]}, {bits: [2], group_size: [128, 64]}]}
+  - {algo: awq_lite, cells: [{bits: [4, 3], group_size: [128]}]}

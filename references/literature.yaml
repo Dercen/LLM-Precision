@@ -16,6 +16,7 @@ meta:
   seqlen: 2048
   dtype: fp16
   resolved_at: 2026-09-21
+  gptq_pdf_verified: 2026-09-21   # Tables 3, 9, 11 read from arXiv 2210.17323 directly
 
 calibrations:
   gptq_c4: {dataset: c4, nsamples: 128, seqlen: 2048, seed: 0}
@@ -63,6 +64,49 @@ rows:
   - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: fp,   bits: 16, group_size: null, ppl: 12.71, source: gptq, table: "11", resolved_from: c4}
   - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: rtn,  bits: 4,  group_size: -1, ppl: 14.36, source: gptq, table: "11", resolved_from: c4}
   - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: gptq, bits: 4,  group_size: -1, ppl: 13.18, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+
+  # ---- verified from the paper PDF on 2026-09-21 (Tables 3, 9, 11) ---------------
+  - {model: facebook/opt-350m, dataset_key: ptb_new, algo: fp,   bits: 16, group_size: null, ppl: 31.08, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-350m, dataset_key: ptb_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 36.79, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-350m, dataset_key: ptb_new, algo: gptq, bits: 4,  group_size: -1, ppl: 34.52, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-350m, dataset_key: ptb_new, algo: rtn,  bits: 3,  group_size: -1, ppl: 88.04, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-350m, dataset_key: ptb_new, algo: gptq, bits: 3,  group_size: -1, ppl: 47.08, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-350m, dataset_key: c4_new,  algo: fp,   bits: 16, group_size: null, ppl: 22.59, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-350m, dataset_key: c4_new,  algo: rtn,  bits: 4,  group_size: -1, ppl: 26.21, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-350m, dataset_key: c4_new,  algo: gptq, bits: 4,  group_size: -1, ppl: 24.63, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-350m, dataset_key: c4_new,  algo: rtn,  bits: 3,  group_size: -1, ppl: 55.49, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-350m, dataset_key: c4_new,  algo: gptq, bits: 3,  group_size: -1, ppl: 31.33, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-1.3b, dataset_key: wikitext2, algo: rtn, bits: 3, group_size: -1, ppl: 13000.0, source: gptq, table: "3", approximate: true}
+  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: fp,   bits: 16, group_size: null, ppl: 20.29, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 57.30, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: gptq, bits: 4,  group_size: -1, ppl: 21.85, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: rtn,  bits: 3,  group_size: -1, ppl: 13000.0, source: gptq, table: "9", approximate: true, resolved_from: ptb}
+  - {model: facebook/opt-1.3b, dataset_key: ptb_new, algo: gptq, bits: 3,  group_size: -1, ppl: 32.10, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: fp,   bits: 16, group_size: null, ppl: 16.07, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: rtn,  bits: 4,  group_size: -1, ppl: 24.51, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: gptq, bits: 4,  group_size: -1, ppl: 16.97, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: rtn,  bits: 3,  group_size: -1, ppl: 5200.0, source: gptq, table: "11", approximate: true, resolved_from: c4}
+  - {model: facebook/opt-1.3b, dataset_key: c4_new,  algo: gptq, bits: 3,  group_size: -1, ppl: 21.63, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-2.7b, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 12.47, source: gptq, table: "3"}
+  - {model: facebook/opt-2.7b, dataset_key: wikitext2, algo: rtn,  bits: 4,  group_size: -1, ppl: 16.92, source: gptq, table: "3"}
+  - {model: facebook/opt-2.7b, dataset_key: wikitext2, algo: gptq, bits: 4,  group_size: -1, ppl: 12.87, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-2.7b, dataset_key: wikitext2, algo: rtn,  bits: 3,  group_size: -1, ppl: 16000.0, source: gptq, table: "3", approximate: true}
+  - {model: facebook/opt-2.7b, dataset_key: wikitext2, algo: gptq, bits: 3,  group_size: -1, ppl: 16.88, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-2.7b, dataset_key: ptb_new, algo: fp,   bits: 16, group_size: null, ppl: 17.97, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-2.7b, dataset_key: ptb_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 31.05, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-2.7b, dataset_key: ptb_new, algo: gptq, bits: 4,  group_size: -1, ppl: 19.14, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-2.7b, dataset_key: ptb_new, algo: rtn,  bits: 3,  group_size: -1, ppl: 14000.0, source: gptq, table: "9", approximate: true, resolved_from: ptb}
+  - {model: facebook/opt-2.7b, dataset_key: ptb_new, algo: gptq, bits: 3,  group_size: -1, ppl: 24.81, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-2.7b, dataset_key: c4_new,  algo: fp,   bits: 16, group_size: null, ppl: 14.34, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-2.7b, dataset_key: c4_new,  algo: rtn,  bits: 4,  group_size: -1, ppl: 18.43, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-2.7b, dataset_key: c4_new,  algo: gptq, bits: 4,  group_size: -1, ppl: 15.00, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-2.7b, dataset_key: c4_new,  algo: rtn,  bits: 3,  group_size: -1, ppl: 11000.0, source: gptq, table: "11", approximate: true, resolved_from: c4}
+  - {model: facebook/opt-2.7b, dataset_key: c4_new,  algo: gptq, bits: 3,  group_size: -1, ppl: 18.17, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-6.7b, dataset_key: wikitext2, algo: rtn, bits: 3, group_size: -1, ppl: 5800.0, source: gptq, table: "3", approximate: true}
+  - {model: facebook/opt-6.7b, dataset_key: ptb_new,   algo: rtn, bits: 3, group_size: -1, ppl: 5700.0, source: gptq, table: "9", approximate: true, resolved_from: ptb}
+  - {model: facebook/opt-6.7b, dataset_key: ptb_new,   algo: gptq, bits: 3, group_size: -1, ppl: 21.88, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: rtn, bits: 3, group_size: -1, ppl: 5300.0, source: gptq, table: "11", approximate: true, resolved_from: c4}
+  - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: gptq, bits: 3, group_size: -1, ppl: 17.14, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
 
   # ---- Llama-2-7B, wikitext2 -------------------------------------------------
   # AWQ Table 4 and OmniQuant Table 1 disagree slightly; both are recorded.

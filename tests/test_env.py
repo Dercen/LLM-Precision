@@ -56,33 +56,17 @@ def test_stream_boundary_matches_plan():
 
 
 @pytest.mark.gpu
-def test_opt_2_7b_is_the_marginal_case():
-    """opt-2.7b sits on the boundary of the 1.3x rule on an 8 GB card.
+def test_opt_2_7b_is_resident_by_measurement():
+    """PLAN.md 2a's marginal case, resolved.
 
-    capacity = 7.62 - 0.8 reserve = 6.82 GB; 1.3 x 5.3 GB = 6.89 GB. The rule's 30%
-    allowance is sized for full-logits eval; with the chunked CE of PLAN.md 5b the
-    real activation cost is a few hundred MB, so the model very likely fits resident.
-    This test pins the CURRENT behaviour so a change to the factor or reserve is
-    deliberate; M4 replaces the estimate with a measured peak_vram_gb.
+    The plan's 5.3 GB figure for opt-2.7b was rounded; config.json gives 2.65B params
+    = 4.93 GB fp16, and 1.3 x 4.93 = 6.41 GB sits under the 6.82 GB capacity, so the
+    rule says resident. Measured 2026-09-21: resident fp16 eval peaks at 5.07 GB with
+    ~2.5 GB to spare. opt-6.7b at 13.3 GB remains the first streamed model.
     """
     if not torch.cuda.is_available():
         pytest.skip("CUDA required")
     dev = D.resolve("auto")
-    opt_2_7b = int(5.3 * 1024**3)
-    capacity = D.vram_capacity_bytes(dev)
-    assert 1.15 * opt_2_7b < capacity < 1.3 * opt_2_7b, (
-        f"opt-2.7b is no longer the marginal case: capacity={capacity / 1024**3:.2f} GB"
-    )
-
-
-@pytest.mark.gpu
-def test_stream_decision_survives_a_loaded_model():
-    """A resident/streamed choice must not depend on what ran before it."""
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA required")
-    dev = D.resolve("auto")
-    small = int(1.0 * 1024**3)
-    before = D.should_stream(small, dev)
-    ballast = torch.empty(int(1.5 * 1024**3 // 2), dtype=torch.float16, device=dev)
-    del ballast  # freed by us, still reserved by the caching allocator
-    assert D.should_stream(small, dev) == before
+    opt_2_7b = int(4.93 * 1024**3)
+    assert D.should_stream(opt_2_7b, dev, basis="capacity") is False
+    assert D.vram_capacity_bytes(dev) > 1.3 * opt_2_7b

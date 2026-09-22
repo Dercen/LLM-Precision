@@ -144,8 +144,7 @@ def evaluate(
 
     partial = max_windows is not None and max_windows < stream.n_windows or seqlen < 2048
 
-    if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)
+    _reset_peak(device)
     peak_ram_before = _rss_gb()
 
     iterator: Any = range(n_windows)
@@ -227,8 +226,7 @@ def evaluate_streamed(
         raise ValueError("no complete windows to evaluate")
     partial = max_windows is not None and max_windows < stream.n_windows or seqlen < 2048
 
-    if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)
+    _reset_peak(device)
     peak_ram_before = _rss_gb()
 
     hidden_size = model.config.hidden_size
@@ -297,6 +295,12 @@ def evaluate_streamed(
         stream_window_batch=window_batch,
         cache_device=str(cache_dev),
     )
+
+
+def _reset_peak(device: torch.device) -> None:
+    from .. import device as D
+
+    D.reset_peak_memory(device)
 
 
 def _is_tty() -> bool:

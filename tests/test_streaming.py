@@ -100,3 +100,24 @@ def test_window_batch_size_does_not_change_the_answer(loaded):
     a = P.evaluate_streamed(lm.model, stream, device=dev, max_windows=7, window_batch=2, offload=False, progress=False)
     b = P.evaluate_streamed(lm.model, stream, device=dev, max_windows=7, window_batch=7, offload=False, progress=False)
     assert a.nll_sum == b.nll_sum
+
+
+def test_streamed_eval_from_a_cold_process():
+    """Regression for the M5 gate crash: the offload path in a process where no tensor
+    has ever touched the GPU. Runs in a subprocess so the context really is cold."""
+    import subprocess
+    import sys
+
+    _need_cuda()
+    code = (
+        "from ptqbench.eval.run_eval import run_single_eval\n"
+        "r = run_single_eval(model_id='facebook/opt-125m', dataset_key='wikitext2', "
+        "eval_mode='streamed', max_windows=2, write=False)\n"
+        "assert r['eval_mode'] == 'streamed' and r['ppl'] > 1, r\n"
+        "print('cold-start ok', r['ppl'])\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=600, check=False
+    )
+    assert out.returncode == 0, out.stderr[-2000:]
+    assert "cold-start ok" in out.stdout

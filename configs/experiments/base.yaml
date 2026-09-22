@@ -1,0 +1,6 @@
+# Shared defaults. Experiments `extends: base.yaml` and override what they need.
+calib: {dataset: c4, nsamples: 128, seqlen: 2048, seed: 0}
+eval: {seqlen: 2048, ce_chunk: 256, eval_mode: auto, window_batch: 32}
+datasets: [wikitext2, c4_new, ptb_new]     # the resolved paper columns (PLAN.md 7)
+family_overrides:
+  llama: {act_order: true}                 # PLAN.md 6: Llama family needs act_order

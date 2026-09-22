@@ -1,0 +1,12 @@
+# CI smoke: opt-125m, short windows, wikitext2 calibration (6 MB, no C4 download).
+extends: base.yaml
+name: smoke_opt125m
+models: [opt-125m]
+datasets: [wikitext2]
+calib: {dataset: wikitext2, nsamples: 16, seqlen: 512, seed: 0}
+eval: {seqlen: 512, max_windows: 8, ce_chunk: 256, eval_mode: auto, window_batch: 8}
+grid:
+  - {algo: fp}
+  - {algo: rtn,  cells: [{bits: [4], group_size: [-1]}]}
+  - {algo: gptq, cells: [{bits: [4], group_size: [-1]}]}
+  - {algo: hqq,  cells: [{bits: [4], group_size: [-1]}]}

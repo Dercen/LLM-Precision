@@ -15,7 +15,8 @@ for the web-verified version pins and reference numbers behind it.
 | M1 First number | done |
 | M2 Data + RTN + schema + CI | done |
 | M3 GPTQ + block streaming | done |
-| M4 Runner + plots + AWQ-lite + HQQ | next |
+| M4 Runner + plots + AWQ-lite + HQQ | code done; `resident_full` matrix running |
+| M5 opt-6.7b streamed | fp16 gate passed; quantized rows next |
 
 ### Reproduced published numbers (opt-125m, fp16 on an RTX 4070)
 
@@ -32,6 +33,12 @@ for the web-verified version pins and reference numbers behind it.
 | wikitext2 | GPTQ3 per-row | 53.0273 | 53.85 | −1.53% |
 | ptb_new | GPTQ4 per-row | 45.7609 | 45.17 | +1.31% |
 | c4_new | GPTQ4 per-row | 29.1953 | 29.22 | −0.08% |
+| wikitext2 (opt-1.3b) | fp16 | 14.6239 | 14.63 | −0.04% |
+| wikitext2 (opt-2.7b) | fp16 | 12.4711 | 12.47 | +0.01% |
+| **wikitext2 (opt-6.7b, streamed)** | **fp16** | **10.8603** | **10.86** | **+0.003%** |
+
+The opt-6.7b row is the point of the streamed tier: 13.3 GB of fp16 weights evaluated on an
+8 GB GPU at a peak of 1.95 GB VRAM, matching the published number to four decimals.
 
 opt-350m lands the same way: fp16 22.0017 / 22.00, RTN4 25.9412 / 25.94, GPTQ4 24.3851 / 24.24,
 RTN3 64.5576 / 64.57, GPTQ3 32.7896 / 33.79. Three calibration seeds on opt-125m GPTQ4 give
@@ -44,6 +51,19 @@ every weight — the 7B path is the same computation, not an approximation of it
 **Llama family finding:** on SmolLM2-135M plain GPTQ4 is *worse* than RTN4 (27.91 vs 26.61)
 while GPTQ4 with `act_order` is 24.18. Llama configs therefore default to `act_order: true`.
 See PLAN.md §6.
+
+AWQ-lite beats RTN at the same grid on both families: opt-125m 4-bit g128 30.48 → 29.30,
+3-bit g128 51.20 → 36.97, SmolLM2 4-bit g64 19.95 → 17.47.
+
+## Running the matrix
+
+```bash
+uv run ptq run configs/experiments/resident_full.yaml --dry-run   # estimate from results/timing.json
+uv run ptq run configs/experiments/resident_full.yaml             # resumable; Ctrl-C finishes the row
+uv run ptq run ... --filter "algo=gptq bits=4" --shard 0/2         # subsets and sharding
+uv run ptq aggregate && uv run ptq plot                           # results.csv, summary.md, plots/
+uv run ptq cache ls                                               # quantized-weight cache
+```
 
 M2 also settled a question the GPTQ README leaves open: its Tables 9 and 11 use the
 `--new-eval` dataset variants, not `get_ptb`/`get_c4`. The plain keys miss by 7–17%

@@ -45,3 +45,8 @@ jobs:
         run: |
           uv run --no-sync ptq eval --model facebook/opt-125m \
             --dataset wikitext2 --max-windows 4 --no-write
+
+      - name: Smoke matrix (fp, rtn, gptq, hqq on CPU)
+        run: |
+          uv run --no-sync ptq run configs/experiments/smoke_opt125m.yaml --device cpu
+          uv run --no-sync ptq aggregate

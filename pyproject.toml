@@ -23,6 +23,7 @@ dependencies = [
   "matplotlib",
   "tqdm",
   "psutil",
+  "zstandard",   # mit-han-lab/pile-val-backup ships val.jsonl.zst; datasets cannot read it
 ]
 
 [project.optional-dependencies]

@@ -32,6 +32,7 @@ from typing import Any
 import torch
 from torch import nn
 
+from .. import device as D
 from ..eval import streaming
 from ..models import families
 from . import fakequant as fq
@@ -233,8 +234,7 @@ def apply_gptq(
     """The sequential driver: quantize block by block, feeding each the last's outputs."""
     fam = family or families.for_model(model)
     started = time.perf_counter()
-    if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)
+    D.reset_peak_memory(device)
 
     n_windows, seqlen = calib_windows.shape
     hidden_size = model.config.hidden_size

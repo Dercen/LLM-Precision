@@ -1,0 +1,10 @@
+# The resident-tier matrix: every model that fits on the 8 GB card in fp16.
+extends: base.yaml
+name: resident_full
+models: [opt-125m, opt-350m, smollm2-135m, opt-1.3b, opt-2.7b]
+grid:
+  - {algo: fp}
+  - {algo: rtn,      cells: [{bits: [8, 4, 3, 2], group_size: [-1, 128]}, {bits: [2], group_size: [64]}]}
+  - {algo: gptq,     cells: [{bits: [8, 4, 3, 2], group_size: [-1, 128]}, {bits: [2], group_size: [64]}]}
+  - {algo: hqq,      cells: [{bits: [8, 4, 3, 2], group_size: [-1, 128]}, {bits: [2], group_size: [64]}]}
+  - {algo: awq_lite, cells: [{bits: [4, 3], group_size: [128]}]}

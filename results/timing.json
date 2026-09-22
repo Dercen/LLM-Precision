@@ -35,6 +35,33 @@
         "dataset": "wikitext2",
         "ce_chunk": 256,
         "peak_vram_gb": 0.355
+      },
+      "facebook/opt-1.3b|torch.float16|resident": {
+        "seconds_per_window": 0.1575,
+        "n_windows_measured": 140,
+        "dataset": "wikitext2",
+        "ce_chunk": 256,
+        "peak_vram_gb": 2.564,
+        "load_seconds": 2.2
+      },
+      "facebook/opt-2.7b|torch.float16|resident": {
+        "seconds_per_window": 0.2961,
+        "n_windows_measured": 140,
+        "dataset": "wikitext2",
+        "ce_chunk": 256,
+        "peak_vram_gb": 5.065,
+        "load_seconds": 3.5
+      },
+      "facebook/opt-6.7b|torch.float16|streamed": {
+        "seconds_per_window": 1.24,
+        "n_windows_measured": 140,
+        "dataset": "wikitext2",
+        "ce_chunk": 256,
+        "window_batch": 32,
+        "cache_device": "cuda:0",
+        "peak_vram_gb": 1.954,
+        "peak_ram_gb": 13.144,
+        "note": "measured with the GPU test suite running concurrently for part of the run; likely ~20-30% pessimistic"
       }
     },
     "quantization": {

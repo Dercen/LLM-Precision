@@ -1,0 +1,4 @@
+extends: resident_full.yaml
+name: streamed_opt67b
+models: [opt-6.7b]
+eval: {seqlen: 2048, ce_chunk: 256, eval_mode: streamed, window_batch: 32}

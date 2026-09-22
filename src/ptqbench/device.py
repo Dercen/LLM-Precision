@@ -112,8 +112,17 @@ def tf32_is_live() -> bool:
 
 
 def lock_numerics(*, deterministic: bool = False, allow_tf32: bool = False) -> NumericsState:
-    """Pin every knob that would otherwise make perplexity hardware-dependent."""
+    """Pin every knob that would otherwise make perplexity hardware-dependent.
+
+    Also initialises the CUDA context. The streamed tier never puts a whole model on
+    the device, so without this the first CUDA call can be a memory-stats query, which
+    raises "Invalid device argument" on an uninitialised context (found by the M5
+    opt-6.7b gate, 2026-09-22; every earlier streamed run had started from a model
+    that had already been resident).
+    """
     notes: list[str] = []
+    if torch.cuda.is_available():
+        torch.cuda.init()
 
     api, api_notes = _set_fp32_precision(allow_tf32)
     notes.extend(api_notes)
@@ -219,6 +228,14 @@ def _driver_version() -> str:
 
 # Headroom for the CUDA context, activations and fragmentation, on top of weights.
 VRAM_RESERVE_GB = 0.8
+
+
+def reset_peak_memory(device: torch.device) -> None:
+    """reset_peak_memory_stats that is safe before any tensor has touched the device."""
+    if device.type != "cuda":
+        return
+    torch.cuda.init()
+    torch.cuda.reset_peak_memory_stats(device)
 
 
 def free_vram_bytes(device: torch.device) -> int:
