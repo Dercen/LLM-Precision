@@ -6,20 +6,15 @@ Post-training-quantization perplexity benchmark for LLMs: how much does perplexi
 degrade as weights are stored at fewer bits, and how much of that loss does each
 quantization algorithm recover?
 
-See [PLAN.md](PLAN.md) for the full design; [docs/verified-facts-2026-09-20.md](docs/verified-facts-2026-09-20.md)
-for the web-verified version pins and reference numbers behind it.
+Method and protocol: [docs/DESIGN.md](docs/DESIGN.md). Findings with numbers: [docs/RESULTS.md](docs/RESULTS.md).
+Running on a cluster: [docs/SERVER.md](docs/SERVER.md). The original plans are archived under `docs/`.
 
 ## Status
 
-| Milestone | State |
-|---|---|
-| M0 Environment | done |
-| M1 First number | done |
-| M2 Data + RTN + schema + CI | done |
-| M3 GPTQ + block streaming | done |
-| M4 Runner + plots + AWQ-lite + HQQ | done — 436-row resident matrix, 0 failures |
-| M5 opt-6.7b streamed | done — nine cells within 0.8% of the paper |
-| M6 Llama-2 / Llama-3.1 (mirrors) | running |
+Milestones M0–M6 of the plan are complete (environment, first number, RTN, GPTQ, the
+resident matrix, opt-6.7b streamed, Llama-2 on the mirror); the Llama-3.1-8B rows are the
+last run in progress. Open items are listed at the end of [docs/RESULTS.md](docs/RESULTS.md).
+
 
 ### Reproduced published numbers (opt-125m, fp16 on an RTX 4070)
 
@@ -51,7 +46,7 @@ The opt-6.7b row is the point of the streamed tier: 13.3 GB of fp16 weights eval
 436 rows, 61 of them against a published number: fp16 within 0.04% everywhere, GPTQ within
 1.2% on average, opt-2.7b GPTQ4 per-row 12.917 vs 12.87. Full tables in `results/summary.md`,
 figures in `results/plots/`. Two published RTN cells (OPT-1.3B on PTB and C4) could not be
-reproduced despite the same weights matching on WikiText-2 — see PLAN.md §13.
+reproduced despite the same weights matching on WikiText-2 — see docs/RESULTS.md.
 
 4-bit g128 on WikiText-2 (lower is better):
 
@@ -72,7 +67,7 @@ every weight — the 7B path is the same computation, not an approximation of it
 
 **Llama family finding:** on SmolLM2-135M plain GPTQ4 is *worse* than RTN4 (27.91 vs 26.61)
 while GPTQ4 with `act_order` is 24.18. Llama configs therefore default to `act_order: true`.
-See PLAN.md §6.
+See docs/RESULTS.md.
 
 AWQ-lite beats RTN at the same grid on both families: opt-125m 4-bit g128 30.48 → 29.30,
 3-bit g128 51.20 → 36.97, SmolLM2 4-bit g64 19.95 → 17.47.
@@ -89,7 +84,7 @@ uv run ptq cache ls                                               # quantized-we
 
 M2 also settled a question the GPTQ README leaves open: its Tables 9 and 11 use the
 `--new-eval` dataset variants, not `get_ptb`/`get_c4`. The plain keys miss by 7–17%
-while the `_new` keys match to 0.1% on two independent columns each. See PLAN.md §7.
+while the `_new` keys match to 0.1% on two independent columns each. See docs/DESIGN.md §7.
 
 ## Easiest way in: the wizard
 
@@ -210,4 +205,4 @@ The repeated fp16 cell is the check that the mirror weights are the same weights
 
 Developed on Pop!_OS 24.04, i9-14900HX, 31 GB RAM, RTX 4070 Laptop (8 GB, sm_89),
 driver 595.84 / CUDA 13.2, torch 2.14.0+cu130. Models up to opt-1.3b run resident
-in fp16; 6.7B-8B run through block-streamed evaluation. See PLAN.md §2.
+in fp16; 6.7B-8B run through block-streamed evaluation. See docs/DESIGN.md §2.

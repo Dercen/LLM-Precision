@@ -78,12 +78,44 @@ GPTQ4 11.4774 vs 10.86 / 12.10 / 11.39; PTB 15.7699 / 18.8578 / 16.4841 vs 15.77
 Streamed and resident evaluation agree to 0.0 on every model where both are possible,
 and offloaded GPTQ produces bit-identical weights to resident GPTQ.
 
-## Llama-2-7b and Llama-3.1-8B
+## Llama-2-7b on an 8 GB GPU
 
-_(filled in when the `streamed_llama` run completes)_ On the NousResearch mirror of
-Llama-2-7b (the official repo is gated; see README), fp16 WikiText-2 = 5.4721 vs 5.47.
-AWQ-lite 4-bit g128 = 5.6380, against the AWQ paper's 5.60 for full AWQ, RTN 5.73 and
-GPTQ 5.69.
+Run on the NousResearch mirror (the official repo is gated; see README), streamed, GPTQ
+with act-order as the family default. Against the AWQ paper's Table 4 and OmniQuant's
+Table 1 on WikiText-2:
+
+| config | ours | published |
+|---|---|---|
+| fp16 | **5.472** | 5.47 |
+| RTN 4-bit g128 | **5.724** | 5.73 (AWQ) / 5.72 (OmniQuant) |
+| GPTQ 4-bit g128 | **5.635** | 5.69 (AWQ) / 5.61 (OmniQuant) |
+| AWQ-lite 4-bit g128 | 5.638 | 5.60 (AWQ, full method, pile_val calibration) |
+| RTN 4-bit per-row | 6.116 | 6.11 |
+| GPTQ 4-bit per-row | **5.830** | 5.83 |
+| RTN 3-bit g128 | 6.664 | 6.66 |
+| GPTQ 3-bit g128 | 6.362 | 6.29 |
+| AWQ-lite 3-bit g128 | 6.333 | 6.24 (AWQ) |
+| RTN 3-bit per-row | 542.7 | 539.48 |
+| GPTQ 3-bit per-row | 8.545 | 8.37 |
+| RTN 2-bit g64 | 432.9 | 431.97 |
+| GPTQ 2-bit g64 | 26.8 | 20.85 (OmniQuant, protocol uncertain) |
+| GPTQ 2-bit g128 | 54.8 | 36.77 (OmniQuant, protocol uncertain) |
+
+Every RTN cell reproduces to 0.6% or better, which also vouches for the mirror weights
+(RTN has no calibration to absorb a difference). GPTQ at 3–4 bits sits within 2% of
+print; the exact 5.830 on W4 per-row identifies the AWQ paper's GPTQ baseline as the
+act-order variant, and those literature rows now say so. The 2-bit GPTQ cells are 30–50%
+above OmniQuant's numbers: 2-bit is where GPTQ is most sensitive to calibration and
+column order, and OmniQuant does not state how its baselines were produced, so those
+cells are descriptive. AWQ-lite — C4-calibrated, scoring group outputs rather than the
+enclosing block — lands within 0.7% (4-bit) and 1.5% (3-bit) of full AWQ.
+
+Each 7B GPTQ configuration took about 15 minutes streamed; peak VRAM stayed under 2 GB
+for evaluation and under 5.5 GB while quantizing, with the hidden-state cache in host RAM.
+
+## Llama-3.1-8B
+
+_Run in progress (resumed after a power loss on 2026-09-22); no verified published reference, so these rows are descriptive only. First rows: fp16 pending, AWQ-lite 4-bit g128 6.677, GPTQ 4-bit per-row (act-order) 7.303._
 
 ## Open items
 

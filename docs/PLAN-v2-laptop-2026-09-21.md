@@ -1,3 +1,5 @@
+> **Archived 2026-09-22.** This plan was executed through M6. The living documents are [DESIGN.md](DESIGN.md) (protocol, algorithms, datasets, references), [RESULTS.md](RESULTS.md) (findings) and [SERVER.md](SERVER.md) (the M7 hand-off).
+
 # PTQ Bench: bit-precision study for LLMs
 
 Revision 2, 2026-09-21. Supersedes the 2026-09-20 plan (archived at `docs/PLAN-v1-windows-cpu-2026-09-20.md`), which targeted a Windows/OneDrive CPU-only laptop. The measurement protocol (§5), algorithms (§6), datasets (§7) and reference perplexities (§13) are unchanged and still rest on `docs/verified-facts-2026-09-20.md`. Everything about hardware, environment, model tiering and milestones is rewritten.
