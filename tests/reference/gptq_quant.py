@@ -4,7 +4,7 @@ This is the ground truth `tests/test_fakequant.py` compares against, kept verbat
 in behaviour so our grid cannot drift from the one the GPTQ, AWQ, SmoothQuant and
 OmniQuant papers measured with. Upstream: https://github.com/IST-DASLab/gptq,
 Apache-2.0. Only the MSE grid search and the trits branch are trimmed, since
-PLAN.md 6 fixes `mse=false` and never uses trits.
+DESIGN.md 6 fixes `mse=false` and never uses trits.
 
 Do not "clean this up" -- its quirks (the zero-inclusive range, the dead-row rule,
 the symmetric zero-point) are exactly what is being tested.

@@ -1,4 +1,4 @@
-"""HQQ through its own quantizer, dequantized back into the model. PLAN.md 6.
+"""HQQ through its own quantizer, dequantized back into the model. DESIGN.md 6.
 
 Data-free, 2 to 8 bits. hqq's optimizer finds a better zero-point than min-max, so
 its rows are a useful second data-free baseline next to `rtn`. Verified on CPU with

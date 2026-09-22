@@ -1,4 +1,4 @@
-"""Experiment configuration. PLAN.md 9.
+"""Experiment configuration. DESIGN.md 9.
 
 A YAML experiment names models (keys into configs/models/), datasets, a calibration
 spec, evaluation settings and a grid of quantization cells. `expand()` turns it into
@@ -141,7 +141,7 @@ class RunSpec(BaseModel):
     @property
     def quant_key(self) -> str:
         # Hashes the repo actually loaded: mirror weights are different weights until
-        # their SHA-equivalence to the official repo is verified (PLAN.md 8).
+        # their SHA-equivalence to the official repo is verified (DESIGN.md 8).
         payload = {
             "model": self.model.repo,
             "revision": self.model.revision or "unpinned",
@@ -189,7 +189,7 @@ class ExperimentSpec(BaseModel):
     calib: CalibSpec = Field(default_factory=CalibSpec)
     eval: EvalSpec = Field(default_factory=EvalSpec)
     grid: list[GridEntry] = Field(default_factory=list)
-    #: QuantSpec overrides per family, e.g. {llama: {act_order: true}} (PLAN.md 6).
+    #: QuantSpec overrides per family, e.g. {llama: {act_order: true}} (DESIGN.md 6).
     family_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 

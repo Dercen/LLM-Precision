@@ -1,4 +1,4 @@
-"""PLAN.md 5c: streamed evaluation is the same protocol as resident evaluation.
+"""DESIGN.md 5c: streamed evaluation is the same protocol as resident evaluation.
 
 Measured 2026-09-21 on opt-125m, opt-350m (project_out, no final norm) and
 SmolLM2-135M (Llama rotary kwargs): resident and streamed agree to 0.0 exactly.

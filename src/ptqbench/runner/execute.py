@@ -63,7 +63,7 @@ def repo_is_fetchable(repo: str) -> bool:
 
 
 def choose_eval_mode(run: C.RunSpec, device: torch.device) -> str:
-    """PLAN.md 2a's rule, plus what the quantizer itself needs on the card.
+    """DESIGN.md 2a's rule, plus what the quantizer itself needs on the card.
 
     The eval-only rule said opt-2.7b (4.93 GB) is resident, and it is -- for evaluation.
     GPTQ adds two in_features^2 fp32 Hessian buffers (0.84 GB for its fc2) and AWQ-lite
@@ -171,7 +171,7 @@ def _promote_to_resident(loaded: ml.LoadedModel, run: C.RunSpec, device: torch.d
     """A model streamed only because its quantizer needed the room evaluates resident.
 
     opt-2.7b quantizes streamed (Hessians) but fits on the card for evaluation; the
-    number is identical either way (PLAN.md 5c), evaluation is ~4x faster resident.
+    number is identical either way (DESIGN.md 5c), evaluation is ~4x faster resident.
     """
     if resident or device.type != "cuda" or run.eval.eval_mode != "auto":
         return resident
@@ -235,7 +235,7 @@ def evaluate(prep: Prepared, run: C.RunSpec, *, progress: bool = True) -> dict[s
 
 
 def _calib_is_paper(run: C.RunSpec) -> bool:
-    """PLAN.md 5.8: awq_lite is comparable only under the AWQ paper's pile_val 128x512."""
+    """DESIGN.md 5.8: awq_lite is comparable only under the AWQ paper's pile_val 128x512."""
     if run.quant.algo != "awq_lite":
         return True
     c = run.calib

@@ -1,4 +1,4 @@
-"""PLAN.md 6: the hqq adapter runs on CPU with CUDA monkeypatched away, on one Linear."""
+"""DESIGN.md 6: the hqq adapter runs on CPU with CUDA monkeypatched away, on one Linear."""
 
 from __future__ import annotations
 

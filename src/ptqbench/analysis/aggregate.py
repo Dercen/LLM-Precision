@@ -1,4 +1,4 @@
-"""results/runs/*.json -> results/results.csv and results/summary.md. PLAN.md 9.5.
+"""results/runs/*.json -> results/results.csv and results/summary.md. DESIGN.md 9.5.
 
 Joins each row onto references/literature.yaml on (model, dataset_key, algo, bits,
 group_size), and additionally on sym / act_order / calibration whenever the

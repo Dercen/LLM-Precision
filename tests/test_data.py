@@ -1,4 +1,4 @@
-"""PLAN.md 5.6 and 5.1: window counts, tokenizer class, and token-id hashes."""
+"""DESIGN.md 5.6 and 5.1: window counts, tokenizer class, and token-id hashes."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import pytest
 
 from ptqbench.data import datasets as ds
 
-# (model, expected tokenizer class) -- PLAN.md 5.1
+# (model, expected tokenizer class) -- DESIGN.md 5.1
 TOKENIZER_CLASSES = {
     "facebook/opt-125m": "GPT2Tokenizer",
     "HuggingFaceTB/SmolLM2-135M": "GPT2Tokenizer",
@@ -68,7 +68,7 @@ def llama_tokenizer():
 
 @pytest.mark.smoke
 def test_llama2_tokenizer_class_and_windows(llama_tokenizer):
-    """PLAN.md 5.1 / 5.6 for the Llama family, measured 2026-09-22 on the pinned mirror."""
+    """DESIGN.md 5.1 / 5.6 for the Llama family, measured 2026-09-22 on the pinned mirror."""
     assert type(llama_tokenizer).__name__ == TOKENIZER_CLASSES["NousResearch/Llama-2-7b-hf"]
     stream = ds.build("wikitext2", llama_tokenizer, seqlen=2048)
     assert stream.n_windows == 166

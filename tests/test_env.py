@@ -1,4 +1,4 @@
-"""Paths, device policy and the numerics lockdown of PLAN.md 5a."""
+"""Paths, device policy and the numerics lockdown of DESIGN.md 5a."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def test_dtype_policy():
 
 @pytest.mark.gpu
 def test_stream_boundary_matches_plan():
-    """PLAN.md 2a: opt-2.7b resident, opt-6.7b streamed, on an 8 GB card."""
+    """DESIGN.md 2a: opt-2.7b resident, opt-6.7b streamed, on an 8 GB card."""
     if not torch.cuda.is_available():
         pytest.skip("CUDA required")
     dev = D.resolve("auto")
@@ -57,7 +57,7 @@ def test_stream_boundary_matches_plan():
 
 @pytest.mark.gpu
 def test_opt_2_7b_is_resident_by_measurement():
-    """PLAN.md 2a's marginal case, resolved.
+    """DESIGN.md 2a's marginal case, resolved.
 
     The plan's 5.3 GB figure for opt-2.7b was rounded; config.json gives 2.65B params
     = 4.93 GB fp16, and 1.3 x 4.93 = 6.41 GB sits under the 6.82 GB capacity, so the

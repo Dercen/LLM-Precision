@@ -1,4 +1,4 @@
-"""GPTQ. PLAN.md 6. A port of IST-DASLab/gptq's `GPTQ.fasterquant` and the
+"""GPTQ. DESIGN.md 6. A port of IST-DASLab/gptq's `GPTQ.fasterquant` and the
 `opt_sequential` / `llama_sequential` drivers, on top of `eval/streaming.py`.
 
 Per block: forward hooks accumulate H = 2/n * sum(x x^T) over the calibration windows

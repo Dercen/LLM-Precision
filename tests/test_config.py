@@ -1,4 +1,4 @@
-"""PLAN.md 9: matrix expansion, stable ids, extends, family overrides."""
+"""DESIGN.md 9: matrix expansion, stable ids, extends, family overrides."""
 
 from __future__ import annotations
 

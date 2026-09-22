@@ -1,4 +1,4 @@
-"""Milestone gates, locked as regressions. PLAN.md 10 and 13.
+"""Milestone gates, locked as regressions. DESIGN.md 10 and 13.
 
 These are the numbers that say the pipeline still reproduces the papers. They run
 on GPU and take about a minute; CI does not run them, each milestone does.

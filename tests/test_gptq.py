@@ -1,4 +1,4 @@
-"""PLAN.md 6 and 10 (M3): the GPTQ port reproduces the paper and is deterministic.
+"""DESIGN.md 6 and 10 (M3): the GPTQ port reproduces the paper and is deterministic.
 
 Measured 2026-09-21 on opt-125m, C4 128x2048 seed 0: GPTQ4 per-row 31.5475 (paper
 31.12, +1.37%), GPTQ3 per-row 53.0273 (paper 53.85, -1.53%). Two independent runs,
@@ -64,7 +64,7 @@ def _quantized_weights(offload: bool):
 
 
 def test_gptq_is_deterministic():
-    """PLAN.md 5a for the quantizer: the same inputs must give the same weights."""
+    """DESIGN.md 5a for the quantizer: the same inputs must give the same weights."""
     _need_cuda()
     D.lock_numerics()
     a, ra = _quantized_weights(offload=False)
@@ -129,7 +129,7 @@ def test_group_size_must_divide_in_features():
     """SmolLM2's hidden size is 576 = 4.5 x 128: g128 cannot tile it and must refuse loudly.
 
     A silent partial trailing group would corrupt a paper-comparable row, so the
-    runner marks such cells skipped rather than bending the grid (PLAN.md 9).
+    runner marks such cells skipped rather than bending the grid (DESIGN.md 9).
     """
     with pytest.raises(ValueError, match="not divisible"):
         _smol(algo="rtn", bits=4, group_size=128, max_windows=2)

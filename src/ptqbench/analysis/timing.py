@@ -1,4 +1,4 @@
-"""results/runs -> results/timing.json. PLAN.md 2b and 9.1.
+"""results/runs -> results/timing.json. DESIGN.md 2b and 9.1.
 
 `ptq run --dry-run` sizes a matrix from seconds-per-window and quantization seconds
 per (model, dtype, eval_mode) and (model, algo). Hand-entered numbers age; every

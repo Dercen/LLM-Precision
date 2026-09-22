@@ -1,4 +1,4 @@
-"""PLAN.md 6: our grid must equal IST-DASLab/gptq's Quantizer, quirks included."""
+"""DESIGN.md 6: our grid must equal IST-DASLab/gptq's Quantizer, quirks included."""
 
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ def test_smaller_groups_is_less_error():
 
 @pytest.mark.smoke
 def test_dtype_is_preserved_and_grid_runs_in_fp32():
-    """PLAN.md 6: fp16 in, fp16 out, but the grid itself computed in fp32."""
+    """DESIGN.md 6: fp16 in, fp16 out, but the grid itself computed in fp32."""
     torch.manual_seed(4)
     w16 = torch.randn(32, 128, dtype=torch.float16)
     out = fq.quantize_weight(w16, bits=4)

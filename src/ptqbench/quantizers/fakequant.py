@@ -1,4 +1,4 @@
-"""The reference quantization grid. PLAN.md 6.
+"""The reference quantization grid. DESIGN.md 6.
 
 Weights are quantized to integers and immediately dequantized back into the original
 nn.Linear ("fake quantization"), which is how the GPTQ, AWQ and OmniQuant papers

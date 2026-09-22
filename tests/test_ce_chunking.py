@@ -1,4 +1,4 @@
-"""PLAN.md 5b: chunked lm_head + cross-entropy must equal the full-logits path."""
+"""DESIGN.md 5b: chunked lm_head + cross-entropy must equal the full-logits path."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def test_chunking_reduces_peak_vram(loaded):
 
 
 def test_repeat_eval_is_bit_identical(loaded):
-    """PLAN.md 5a: with TF32 off and benchmark off, a repeated eval must not drift."""
+    """DESIGN.md 5a: with TF32 off and benchmark off, a repeated eval must not drift."""
     lm, stream, dev = loaded
     a = P.evaluate(lm.model, stream, device=dev, max_windows=8, progress=False)
     b = P.evaluate(lm.model, stream, device=dev, max_windows=8, progress=False)

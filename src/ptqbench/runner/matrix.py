@@ -1,4 +1,4 @@
-"""`ptq run`: the matrix loop. PLAN.md 9.
+"""`ptq run`: the matrix loop. DESIGN.md 9.
 
 Expand -> filter -> group by quant_key -> shard -> for each group: skip what is done,
 prepare once, evaluate every pending dataset, write each row atomically. Exceptions
@@ -214,7 +214,7 @@ def run_matrix(
 
 
 def _prepare_with_ladder(run: C.RunSpec, device: torch.device, use_cache: bool, deterministic: bool, log) -> X.Prepared:
-    """PLAN.md 9.4: on CUDA OOM, retry once streamed before giving up.
+    """DESIGN.md 9.4: on CUDA OOM, retry once streamed before giving up.
 
     The retry must first actually release the failed attempt: a caught exception's
     traceback keeps every frame -- and the half-loaded model in its locals -- alive,

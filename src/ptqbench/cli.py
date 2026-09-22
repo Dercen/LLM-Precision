@@ -63,7 +63,7 @@ def cmd_env_check(args: argparse.Namespace) -> int:
     if torch.cuda.is_available() and "+cu" not in torch.__version__:
         warnings.append(f"CUDA is available but torch is {torch.__version__}")
 
-    print("\nnumerics (PLAN.md 5a)")
+    print("\nnumerics (DESIGN.md 5a)")
     before = D.read_fp32_precision()
     print(_fmt("fp32_precision (before)", before))
     state = D.lock_numerics(deterministic=args.deterministic)
@@ -230,7 +230,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--deterministic",
         action="store_true",
-        help="enable torch deterministic algorithms (slower; see PLAN.md 5a)",
+        help="enable torch deterministic algorithms (slower; see DESIGN.md 5a)",
     )
     sub = parser.add_subparsers(dest="command", required=False)
 
@@ -266,7 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--seed", type=int, default=0)
     p_eval.add_argument(
         "--eval-mode", default="auto", choices=["auto", "resident", "streamed"],
-        help="auto picks streamed when free VRAM < 1.3 x model bytes (PLAN.md 2a)",
+        help="auto picks streamed when free VRAM < 1.3 x model bytes (DESIGN.md 2a)",
     )
     p_eval.add_argument("--stream-window-batch", type=int, default=32)
     p_eval.add_argument("--no-write", action="store_true", help="do not write results/runs/*.json")

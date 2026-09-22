@@ -1,4 +1,4 @@
-"""Block streaming: the one primitive behind GPTQ and --stream-blocks. PLAN.md 4, 5c.
+"""Block streaming: the one primitive behind GPTQ and --stream-blocks. DESIGN.md 4, 5c.
 
 Walk the decoder blocks in order, one block on the accelerator at a time, pushing a
 set of hidden states through each. GPTQ pushes every calibration window and pauses
@@ -128,7 +128,7 @@ def resolve_cache_device(
     # it. The estimates undercount working sets that are hard to enumerate (GPTQ
     # holds every Hessian of a block at once, AWQ-lite its per-group features and
     # references); Llama-2-7b AWQ-lite OOMed with the cache on the GPU at a 90%
-    # budget (2026-09-22). A host-RAM cache costs about 1% (PLAN.md 5c).
+    # budget (2026-09-22). A host-RAM cache costs about 1% (DESIGN.md 5c).
     return device if cache_bytes + extra_bytes < CACHE_ON_DEVICE_FRACTION * budget else torch.device("cpu")
 
 

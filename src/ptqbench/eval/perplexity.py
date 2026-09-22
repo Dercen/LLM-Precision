@@ -1,4 +1,4 @@
-"""Perplexity, exactly as PLAN.md 5 specifies, with the chunked cross-entropy of 5b.
+"""Perplexity, exactly as DESIGN.md 5 specifies, with the chunked cross-entropy of 5b.
 
 The reference protocol (IST-DASLab/gptq, shared by GPTQ, AWQ, SmoothQuant, OmniQuant)
 takes a MEAN over the 2047 predictions of a 2048-token window and then multiplies by
@@ -134,7 +134,7 @@ def evaluate(
     eval_mode: str = "resident",
     progress: bool = True,
 ) -> PerplexityResult:
-    """PLAN.md 5.3-5.5. Batch 1, no grad, tail window dropped by the TokenStream."""
+    """DESIGN.md 5.3-5.5. Batch 1, no grad, tail window dropped by the TokenStream."""
     seqlen = stream.seqlen
     n_windows = stream.n_windows
     if max_windows is not None:
@@ -206,7 +206,7 @@ def evaluate_streamed(
     offload: bool | None = None,
     progress: bool = True,
 ) -> PerplexityResult:
-    """PLAN.md 5c: block-major, window-batched evaluation through `eval/streaming.py`.
+    """DESIGN.md 5c: block-major, window-batched evaluation through `eval/streaming.py`.
 
     Same arithmetic as `evaluate`; only the order of computation differs. For each
     batch of windows: capture block-0 inputs via the model's own embedding path, walk

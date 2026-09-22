@@ -23,7 +23,7 @@ def test_every_row_has_the_join_keys(lit):
 
 
 def test_data_dependent_rows_declare_calibration(lit):
-    """PLAN.md 13: the join must never pair an awq_lite row with the wrong calib."""
+    """DESIGN.md 13: the join must never pair an awq_lite row with the wrong calib."""
     for row in lit["rows"]:
         if row["algo"] in ("gptq", "awq_lite") and not row.get("protocol_uncertain"):
             assert "calib" in row, f"data-dependent row without calib: {row}"

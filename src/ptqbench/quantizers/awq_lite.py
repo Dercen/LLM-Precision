@@ -1,5 +1,5 @@
 """AWQ-lite: activation-aware scaling and clipping, then the reference RTN grid.
-PLAN.md 6. A reduced re-implementation of Lin et al.'s AWQ on `eval/streaming.py`.
+DESIGN.md 6. A reduced re-implementation of Lin et al.'s AWQ on `eval/streaming.py`.
 
 Per decoder block, for each *scale group* -- a set of Linears that share an input X
 and have a predecessor the scale can be folded into:

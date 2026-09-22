@@ -1,4 +1,4 @@
-"""Which algorithms exist, what they need, and why a row is skipped. PLAN.md 6, 9.
+"""Which algorithms exist, what they need, and why a row is skipped. DESIGN.md 6, 9.
 
 An unavailable backend never aborts a matrix: the runner writes `status=skipped`
 rows with the reason, which `--rerun-incomplete` retries once the backend exists.

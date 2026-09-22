@@ -1,6 +1,6 @@
 """End-to-end on CPU with tiny settings: the CI proof that the pipeline runs at all.
 
-Mirrors PLAN.md 9's smoke config: wikitext2 calibration (6 MB, no C4 download),
+Mirrors DESIGN.md 9's smoke config: wikitext2 calibration (6 MB, no C4 download),
 short sequences, a handful of windows. Nothing here checks accuracy -- the gates do.
 """
 
@@ -48,7 +48,7 @@ def test_streamed_mode_runs_on_cpu():
 
 
 def test_hqq_adapter_placeholder():
-    """PLAN.md 6: hqq rows are skipped, not crashed, when the backend is absent.
+    """DESIGN.md 6: hqq rows are skipped, not crashed, when the backend is absent.
 
     The adapter lands at M4; until then this pins the import that it will use.
     """

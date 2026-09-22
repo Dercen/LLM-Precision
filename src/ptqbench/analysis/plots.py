@@ -1,4 +1,4 @@
-"""`ptq plot`: static figures from results.csv. PLAN.md 9.5.
+"""`ptq plot`: static figures from results.csv. DESIGN.md 9.5.
 
 Two figures per model:
 

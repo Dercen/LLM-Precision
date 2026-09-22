@@ -1,7 +1,7 @@
-"""Device resolution, dtype policy, and the numerical-determinism lockdown of PLAN.md 5a.
+"""Device resolution, dtype policy, and the numerical-determinism lockdown of DESIGN.md 5a.
 
 TF32 matmuls carry ~10 mantissa bits and move perplexity in the third decimal --
-larger than the +/-0.02 tolerance the reference numbers in PLAN.md 13 are stated to.
+larger than the +/-0.02 tolerance the reference numbers in DESIGN.md 13 are stated to.
 `lock_numerics()` must run before any model is built, and the flags it reports are
 recorded in every result row.
 """
@@ -14,7 +14,7 @@ from typing import Any
 
 import torch
 
-# Model-family dtype policy (PLAN.md 2). CPU always gets fp32.
+# Model-family dtype policy (DESIGN.md 2). CPU always gets fp32.
 _BF16_FAMILIES = ("llama-3", "llama3", "meta-llama-3")
 
 
@@ -170,7 +170,7 @@ def resolve(spec: str = "auto") -> torch.device:
 
 
 def dtype_for(model_id: str, device: torch.device) -> torch.dtype:
-    """PLAN.md 2: fp16 for OPT and Llama-2, bf16 for Llama-3, fp32 on CPU."""
+    """DESIGN.md 2: fp16 for OPT and Llama-2, bf16 for Llama-3, fp32 on CPU."""
     if device.type == "cpu":
         return torch.float32
     lowered = model_id.lower()
@@ -268,7 +268,7 @@ def vram_available_bytes(device: torch.device) -> int:
 def vram_capacity_bytes(device: torch.device, *, reserve_gb: float = VRAM_RESERVE_GB) -> int:
     """What the card could hold on an empty machine: a property of the hardware.
 
-    Used for planning (`--dry-run`, tiering in PLAN.md 2a), where the answer must not
+    Used for planning (`--dry-run`, tiering in DESIGN.md 2a), where the answer must not
     depend on what happens to be loaded at the moment the question is asked.
     """
     if device.type != "cuda":
@@ -284,7 +284,7 @@ def should_stream(
     factor: float = 1.3,
     basis: str = "available",
 ) -> bool:
-    """PLAN.md 2a: stream when the VRAM budget is below 1.3 x model bytes.
+    """DESIGN.md 2a: stream when the VRAM budget is below 1.3 x model bytes.
 
     basis="available" is the live load decision; basis="capacity" asks the
     hardware-only question and is what planning and tests use.

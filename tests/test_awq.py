@@ -1,4 +1,4 @@
-"""PLAN.md 6 and 10 (M4): AWQ-lite beats RTN at the same grid, on both families.
+"""DESIGN.md 6 and 10 (M4): AWQ-lite beats RTN at the same grid, on both families.
 
 Measured 2026-09-21, wikitext2, C4 128x2048 seed 0: opt-125m 4-bit g128 RTN 30.4803 vs
 AWQ-lite 29.3020; 3-bit g128 51.2001 vs 36.9665; SmolLM2-135M 4-bit g64 19.9461 vs 17.4723

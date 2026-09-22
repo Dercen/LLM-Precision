@@ -1,4 +1,4 @@
-"""PLAN.md 9: the matrix runner -- ids, filtering, sharding, resume, skips, cache."""
+"""DESIGN.md 9: the matrix runner -- ids, filtering, sharding, resume, skips, cache."""
 
 from __future__ import annotations
 
@@ -151,7 +151,7 @@ def test_resolve_run_falls_back_to_the_mirror_when_gated(monkeypatch):
 
 @pytest.mark.gpu
 def test_quantizers_count_their_own_memory_when_choosing_the_mode():
-    """opt-2.7b: resident for evaluation, streamed for GPTQ and AWQ-lite (PLAN.md 2a)."""
+    """opt-2.7b: resident for evaluation, streamed for GPTQ and AWQ-lite (DESIGN.md 2a)."""
     if not torch.cuda.is_available():
         pytest.skip("CUDA required")
     dev = torch.device("cuda:0")

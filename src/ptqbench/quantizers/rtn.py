@@ -1,4 +1,4 @@
-"""Round-to-nearest quantization. PLAN.md 6.
+"""Round-to-nearest quantization. DESIGN.md 6.
 
 Data-free: apply the reference grid to every target Linear in place. This is the
 baseline every other algorithm is measured against, and the RTN4 number is the M2

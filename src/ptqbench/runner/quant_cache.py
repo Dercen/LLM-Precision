@@ -1,4 +1,4 @@
-"""On-disk cache of quantized target weights, keyed by quant_key. PLAN.md 9.3.
+"""On-disk cache of quantized target weights, keyed by quant_key. DESIGN.md 9.3.
 
 A crash between datasets must never repeat a long quantization. Entries hold the
 fake-quantized weights of every target Linear in the model's own dtype (fp16/bf16 on
