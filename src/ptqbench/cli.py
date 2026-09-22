@@ -308,11 +308,47 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+CACHE_WARN_GB_DEFAULT = 50.0
+
+
+def warn_if_cache_is_large(threshold_gb: float | None = None) -> str | None:
+    """Print (and return) a warning when the quantized-weight cache exceeds the threshold.
+
+    The cache is never capped automatically -- it is what makes a crashed 7B run
+    resumable -- but it grows by gigabytes per configuration, so every `ptq`
+    invocation says so once it passes PTQ_CACHE_WARN_GB (default 50).
+    """
+    import os
+
+    from .runner import quant_cache
+
+    if threshold_gb is None:
+        try:
+            threshold_gb = float(os.environ.get("PTQ_CACHE_WARN_GB", CACHE_WARN_GB_DEFAULT))
+        except ValueError:
+            threshold_gb = CACHE_WARN_GB_DEFAULT
+    try:
+        size_gb = quant_cache.total_bytes() / 1024**3
+        n = len(quant_cache.entries())
+    except OSError:
+        return None
+    if size_gb <= threshold_gb:
+        return None
+    message = (
+        f"warning: the quantized-weight cache holds {size_gb:.0f} GB in {n} entries "
+        f"({paths.quant_cache_dir()}). It is not capped; `ptq cache ls` to inspect, "
+        f"`ptq cache gc --max-gb N` to trim. Set PTQ_CACHE_WARN_GB to change this threshold."
+    )
+    print(message, file=sys.stderr)
+    return message
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:  # plain `ptq` opens the wizard
         args.func = cmd_wizard
+    warn_if_cache_is_large()
     return int(args.func(args))
 
 

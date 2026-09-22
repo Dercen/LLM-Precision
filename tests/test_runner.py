@@ -165,3 +165,16 @@ def test_quantizers_count_their_own_memory_when_choosing_the_mode():
     from ptqbench import device as D
     assert D.should_stream(est, dev, basis="capacity") is False
     assert D.should_stream(est + X.quantizer_extra_bytes(gptq), dev, basis="capacity") is True
+
+
+def test_cache_warning_threshold(tmp_path, monkeypatch, capsys):
+    from ptqbench import cli
+
+    monkeypatch.setattr(paths, "quant_cache_dir", lambda: tmp_path)
+    (tmp_path / "a.safetensors").write_bytes(b"x" * 1024)
+    assert cli.warn_if_cache_is_large(threshold_gb=50) is None
+    msg = cli.warn_if_cache_is_large(threshold_gb=0)
+    assert msg and "not capped" in msg and "cache gc" in msg
+    assert "warning" in capsys.readouterr().err
+    monkeypatch.setenv("PTQ_CACHE_WARN_GB", "0")
+    assert cli.warn_if_cache_is_large() is not None
