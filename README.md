@@ -1,3 +1,5 @@
+
+
 # ptq-bench
 
 Post-training-quantization perplexity benchmark for LLMs: how much does perplexity
@@ -119,6 +121,55 @@ uv run pytest -q
 `scripts/env.sh` is safe to source repeatedly and works unchanged on a cluster
 (it picks up `$SCRATCH` when set). `DISABLE_CUDA=1` in it is **hqq's build flag**,
 not a torch flag — `ptq env-check` asserts CUDA is live so it cannot regress unnoticed.
+
+## Adding a model
+
+Models are one small YAML file each in `configs/models/`. Copy an existing one and edit it:
+
+```yaml
+# configs/models/opt-6.7b.yaml
+repo: facebook/opt-6.7b            # Hugging Face id
+revision: a45aa65bbeb77c...        # optional but recommended: pins the exact weights
+gated: false                       # true if the Hub asks you to accept a licence
+mirror: SomeOrg/same-weights       # optional ungated copy, used when the repo is gated
+tokenizer_class: GPT2Tokenizer     # what `type(tokenizer).__name__` prints; recorded on rows
+family: opt                        # opt or llama (see below)
+dtype: auto                        # auto = fp16, or bf16 for Llama-3-style models
+extra_group_sizes: [64]            # optional: extra group sizes if 128 does not divide the hidden size
+notes: anything worth remembering
+```
+
+The file name (without `.yaml`) is the model's key: it appears in the wizard's menu and
+in experiment files automatically. Weights download on first use (or `uv run ptq prefetch
+<experiment>`); the runner decides by itself whether the model fits on the GPU or has to
+be streamed through it one block at a time.
+
+`family` tells the code where the transformer blocks are and which layers to quantize.
+Anything built like OPT or like Llama/Mistral/Qwen2 works as is. A genuinely different
+architecture needs one entry in `src/ptqbench/models/families.py` (the block list path,
+the linear layer names, the norms that come after the last block, and the AWQ scale
+groups) — copy the `LLAMA` entry and adjust the names.
+
+## Adding a dataset
+
+Datasets are functions in `src/ptqbench/data/datasets.py`. Each one loads text, joins
+it into a single stream, tokenizes it once and returns a `TokenStream`:
+
+```python
+@register("my_corpus")
+def _my_corpus(tokenizer, seqlen: int) -> TokenStream:
+    ds = _hf_load("some-org/some-dataset", split="test")      # any Hugging Face dataset
+    text = "\n\n".join(ds["text"])                            # how the documents are joined
+    ids = _truncate_to_windows(_encode(tokenizer, text), seqlen)
+    return TokenStream("my_corpus", ids, seqlen, "test", '"\n\n".join', len(ds))
+```
+
+That is all: the key `my_corpus` is then accepted by `--dataset`, by experiment YAMLs
+and by the wizard's checkbox list (add a one-line description to `DATASETS` in
+`src/ptqbench/wizard.py` if you want it labelled there). If a paper reports perplexity
+on it, add those rows to `references/literature.yaml` and `ptq aggregate` will show the
+published number and the delta next to yours. Calibration sets for GPTQ/AWQ live in
+`src/ptqbench/data/calibration.py` the same way.
 
 ## Gated models (needs you)
 
