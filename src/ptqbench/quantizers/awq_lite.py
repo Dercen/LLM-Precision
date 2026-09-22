@@ -168,15 +168,20 @@ def _is_positively_homogeneous(act: Any) -> bool:
 
 
 @torch.no_grad()
-def _score(group: ScaleGroup, X: torch.Tensor, s: torch.Tensor, spec: AWQSpec) -> float:
-    """sum over the group's Linears of ||Q(W s)(X/s) - W X||^2 under the RTN grid."""
+def _score(group: ScaleGroup, X: torch.Tensor, s: torch.Tensor, spec: AWQSpec, refs: dict[str, torch.Tensor]) -> float:
+    """sum over the group's Linears of ||Q(W s)(X/s) - W X||^2 under the RTN grid.
+
+    `refs` holds W X per Linear, computed once per group rather than once per alpha.
+    """
     Xs = X / s
     total = 0.0
-    for lin in group.linears.values():
+    for name, lin in group.linears.items():
         W = lin.weight.detach().float()
-        ref = X @ W.t()
         Wq = fq.quantize_weight(W * s, bits=spec.bits, sym=spec.sym, group_size=spec.group_size)
-        total += float(((Xs @ Wq.t() - ref) ** 2).sum())
+        out = Xs @ Wq.t()
+        out.sub_(refs[name])
+        total += float(out.pow_(2).sum())
+        del out, Wq
     return total
 
 
@@ -187,12 +192,13 @@ def search_scale(group: ScaleGroup, X: torch.Tensor, spec: AWQSpec) -> tuple[tor
     W_all = torch.cat([lin.weight.detach().float() for lin in group.linears.values()], dim=0)
     s_w = W_all.abs().mean(dim=0).clamp_min(1e-5)
 
+    refs = {name: X @ lin.weight.detach().float().t() for name, lin in group.linears.items()}
     best_s, best_alpha, best_loss = None, 0.0, float("inf")
     for i in range(spec.grid):
         alpha = i / spec.grid
         s = (s_x.pow(alpha) / s_w.pow(1 - alpha)).clamp_min(1e-4)
         s = s / (s.max() * s.min()).sqrt()
-        loss = _score(group, X, s, spec)
+        loss = _score(group, X, s, spec, refs)
         if loss < best_loss:
             best_s, best_alpha, best_loss = s, alpha, loss
     if best_s is None or not torch.isfinite(torch.tensor(best_loss)):
@@ -224,6 +230,12 @@ def search_clip(lin: nn.Linear, X: torch.Tensor, spec: AWQSpec) -> torch.Tensor:
     """Per output row (and per column group), the max-shrink ratio with least error.
 
     Returns the clipped weight in the Linear's dtype. Never widens the range.
+
+    The error is accumulated one column group at a time as ||X_g (W_g - Q(W_g))^T||^2,
+    never materialising a (rows x groups x tokens) tensor: the first version did, and
+    at 4.3 GB for opt-1.3b's fc1 it OOMed the resident_full matrix on 2026-09-22.
+    Peak temporaries are now tokens x rows fp32 (0.27 GB for opt-1.3b, 0.54 GB for
+    opt-6.7b).
     """
     W = lin.weight.detach().float()
     rows, cols = W.shape
@@ -232,8 +244,6 @@ def search_clip(lin: nn.Linear, X: torch.Tensor, spec: AWQSpec) -> torch.Tensor:
         raise ValueError(f"in_features {cols} not divisible by group_size {gs}")
     n_groups = cols // gs
     Wg = W.reshape(rows, n_groups, gs)
-    Xg = X.reshape(X.shape[0], n_groups, gs)  # (tokens, groups, gs)
-    ref = torch.einsum("tgc,rgc->rgt", Xg, Wg)  # per-row, per-group partial outputs
     max_abs = Wg.abs().amax(dim=2, keepdim=True)
 
     best_err = torch.full((rows, n_groups), float("inf"), device=W.device)
@@ -242,8 +252,12 @@ def search_clip(lin: nn.Linear, X: torch.Tensor, spec: AWQSpec) -> torch.Tensor:
         ratio = 1.0 - i * (1.0 - spec.clip_max_shrink) / spec.clip_grid
         bound = max_abs * ratio
         Wc = torch.clamp(Wg, -bound, bound).reshape(rows, cols)
-        Wq = fq.quantize_weight(Wc, bits=spec.bits, sym=spec.sym, group_size=spec.group_size).reshape(rows, n_groups, gs)
-        err = ((torch.einsum("tgc,rgc->rgt", Xg, Wq) - ref) ** 2).sum(dim=2)
+        Wq = fq.quantize_weight(Wc, bits=spec.bits, sym=spec.sym, group_size=spec.group_size)
+        diff = (Wq - W).reshape(rows, n_groups, gs)
+        err = torch.empty((rows, n_groups), device=W.device)
+        for g in range(n_groups):
+            # (tokens, gs) @ (gs, rows) -> (tokens, rows); squared and summed over tokens.
+            err[:, g] = (X[:, g * gs : (g + 1) * gs] @ diff[:, g, :].t()).pow_(2).sum(dim=0)
         better = err < best_err
         best_err = torch.where(better, err, best_err)
         best_ratio = torch.where(better, torch.full_like(best_ratio, ratio), best_ratio)
@@ -283,8 +297,15 @@ def apply_awq_lite(
     dtype = next(model.parameters()).dtype
     blocks = fam.block_list(model)
     largest_block = max(sum(p.numel() * p.element_size() for p in b.parameters()) for b in blocks)
+    # Scoring temporaries: X (tokens x in), the reference outputs (tokens x out) and one
+    # candidate output, all fp32, for the widest Linear -- measured to matter at 1.3B,
+    # where leaving them out of the budget put the hidden cache on the GPU and peaked
+    # at 6 GB with a recovered OOM.
+    widest = max(max(m.in_features, m.out_features) for b in blocks for m in families.block_targets(b, fam).values())
+    transients = 4 * spec.score_tokens * widest * 4
     cache_dev = streaming.resolve_cache_device(
-        n_windows, seqlen, model.config.hidden_size, dtype, device, extra_bytes=largest_block, spec=cache_device
+        n_windows, seqlen, model.config.hidden_size, dtype, device,
+        extra_bytes=largest_block + transients, spec=cache_device,
     )
 
     # Which windows score the searches: an evenly spaced subsample of the calibration set.
