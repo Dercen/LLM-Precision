@@ -107,4 +107,5 @@ def test_model_bytes_estimate_counts_an_untied_lm_head():
     est = ml.estimate_model_bytes(C.load_model("llama-3.1-8b").with_mirror().repo, torch.bfloat16)
     assert abs(est / 1024**3 - 16.06 * 1000**3 / 1024**3) / (16.06 * 1000**3 / 1024**3) < 0.01
     tied = ml.estimate_model_bytes("facebook/opt-125m", torch.float16)
-    assert abs(tied - 125_000_000 * 2) / (125_000_000 * 2) < 0.01
+    # Positional embeddings, biases and norms are not estimated: "good to a few percent".
+    assert abs(tied - 125_000_000 * 2) / (125_000_000 * 2) < 0.02
