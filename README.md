@@ -69,6 +69,19 @@ M2 also settled a question the GPTQ README leaves open: its Tables 9 and 11 use 
 `--new-eval` dataset variants, not `get_ptb`/`get_c4`. The plain keys miss by 7–17%
 while the `_new` keys match to 0.1% on two independent columns each. See PLAN.md §7.
 
+## Easiest way in: the wizard
+
+```bash
+source scripts/env.sh
+uv run ptq            # or: uv run ptq wizard
+```
+
+Arrow-key menus for model → datasets → method → bits → group size, a one-line plan to
+confirm, then a table with your perplexity next to the published number. "Quick preview"
+runs 20 windows (marked partial) when you just want a look. A wizard row is the same row
+`ptq run` would produce — same ids, same schema — so it lands in `results/runs/` and shows
+up in `ptq aggregate` and `ptq plot`. Add `--device cpu` to try it while the GPU is busy.
+
 ## Quick start
 
 ```bash

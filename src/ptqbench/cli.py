@@ -218,6 +218,12 @@ def cmd_cache(args: argparse.Namespace) -> int:
     return OK
 
 
+def cmd_wizard(args: argparse.Namespace) -> int:
+    from .wizard import run_wizard
+
+    return run_wizard(device_spec=args.device)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ptq", description=__doc__)
     parser.add_argument("--device", default="auto", help="auto | cpu | cuda | cuda:N")
@@ -226,7 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="enable torch deterministic algorithms (slower; see PLAN.md 5a)",
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=False)
 
     p_env = sub.add_parser("env-check", help="resolve paths, versions and numerics; fail on drift")
     p_env.add_argument("--json", action="store_true", help="also emit a JSON payload")
@@ -296,12 +302,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_gc.add_argument("--max-gb", type=float, default=None)
     p_cache.set_defaults(func=cmd_cache)
 
+    p_wiz = sub.add_parser("wizard", help="interactive: pick model/dataset/method/bits from menus and run")
+    p_wiz.set_defaults(func=cmd_wizard)
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command is None:  # plain `ptq` opens the wizard
+        args.func = cmd_wizard
     return int(args.func(args))
 
 

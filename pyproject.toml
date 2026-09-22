@@ -24,6 +24,7 @@ dependencies = [
   "tqdm",
   "psutil",
   "zstandard",   # mit-han-lab/pile-val-backup ships val.jsonl.zst; datasets cannot read it
+  "questionary>=2", "rich>=13",   # `ptq wizard`: interactive menus and result tables
 ]
 
 [project.optional-dependencies]
