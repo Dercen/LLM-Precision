@@ -84,6 +84,21 @@ uv run pytest -q
 (it picks up `$SCRATCH` when set). `DISABLE_CUDA=1` in it is **hqq's build flag**,
 not a torch flag — `ptq env-check` asserts CUDA is live so it cannot regress unnoticed.
 
+## Gated models (needs you)
+
+`meta-llama/Llama-2-7b-hf` and `meta-llama/Llama-3.1-8B` are gated. Until this machine
+is logged in and the licences are accepted, the runner substitutes the pinned ungated
+mirrors (`NousResearch/Llama-2-7b-hf`, `unsloth/Meta-Llama-3.1-8B`) and records
+`loaded_from` on every row. To use the official repos:
+
+```bash
+source scripts/env.sh && uv run hf auth login     # token lands in $HF_HOME/token
+# then accept the licences at huggingface.co/meta-llama/Llama-2-7b-hf and /Llama-3.1-8B
+uv run ptq run configs/experiments/streamed_llama.yaml --filter algo=fp   # repeats fp16 on the official weights
+```
+
+The repeated fp16 cell is the check that the mirror weights are the same weights.
+
 ## Hardware
 
 Developed on Pop!_OS 24.04, i9-14900HX, 31 GB RAM, RTX 4070 Laptop (8 GB, sm_89),
