@@ -11,6 +11,7 @@ TOKENIZER_CLASSES = {
     "facebook/opt-125m": "GPT2Tokenizer",
     "HuggingFaceTB/SmolLM2-135M": "GPT2Tokenizer",
     "NousResearch/Llama-2-7b-hf": "LlamaTokenizer",
+    "unsloth/Meta-Llama-3.1-8B": "TokenizersBackend",
 }
 
 
@@ -76,3 +77,34 @@ def test_llama2_tokenizer_class_and_windows(llama_tokenizer):
     assert stream.first_token_hash() == "f3c95364766921f6"
     c4 = ds.build("c4_new", llama_tokenizer, seqlen=2048)
     assert c4.n_windows == 256 and c4.first_token_hash() == "049bab220bbdc351"
+
+
+@pytest.mark.smoke
+def test_llama31_tokenizer_class_and_windows():
+    """Llama-3.1 on its pinned mirror: 128k vocab, BOS once, and c4_new is NOT 256 here."""
+    from transformers import AutoTokenizer
+
+    from ptqbench import config as C
+    from ptqbench import paths
+
+    spec = C.load_model("llama-3.1-8b").with_mirror()
+    tok = AutoTokenizer.from_pretrained(spec.repo, cache_dir=str(paths.hf_home()), revision=spec.revision)
+    assert type(tok).__name__ == TOKENIZER_CLASSES["unsloth/Meta-Llama-3.1-8B"] == spec.tokenizer_class
+    assert len(tok) == 128256
+    stream = ds.build("wikitext2", tok, seqlen=2048)
+    assert stream.n_windows == 141 and stream.first_token_hash() == "30b8e336afa8a93e"
+    assert stream.ids[0, 0].item() == tok.bos_token_id and stream.ids[0, 1:].eq(tok.bos_token_id).sum() == 0
+    assert ds.build("c4_new", tok, seqlen=2048).n_windows == 252, "first-1100-docs protocol; 256 only for OPT-verbose tokenizers"
+
+
+@pytest.mark.smoke
+def test_model_bytes_estimate_counts_an_untied_lm_head():
+    import torch
+
+    from ptqbench import config as C
+    from ptqbench.models import loader as ml
+
+    est = ml.estimate_model_bytes(C.load_model("llama-3.1-8b").with_mirror().repo, torch.bfloat16)
+    assert abs(est / 1024**3 - 16.06 * 1000**3 / 1024**3) / (16.06 * 1000**3 / 1024**3) < 0.01
+    tied = ml.estimate_model_bytes("facebook/opt-125m", torch.float16)
+    assert abs(tied - 125_000_000 * 2) / (125_000_000 * 2) < 0.01
