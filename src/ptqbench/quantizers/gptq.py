@@ -216,7 +216,10 @@ def _hessian_bytes(block: nn.Module, family: families.Family) -> int:
     targets = families.block_targets(block, family)
     if not targets:
         return 0
-    return 2 * 4 * max(m.in_features**2 for m in targets.values())
+    all_h = sum(m.in_features**2 for m in targets.values())  # hooks fill every Hessian at once
+    largest = max(m.in_features**2 for m in targets.values())  # + its Cholesky temporaries
+    copies = 3 * max(m.in_features * m.out_features for m in targets.values())  # W, Q, Losses fp32
+    return 4 * (all_h + largest + copies)
 
 
 @torch.no_grad()

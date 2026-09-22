@@ -39,6 +39,7 @@ for the web-verified version pins and reference numbers behind it.
 | **wikitext2 (opt-6.7b, streamed)** | **fp16** | **10.8603** | **10.86** | **+0.003%** |
 | wikitext2 (opt-6.7b, streamed) | RTN4 per-row | 12.0992 | 12.10 | −0.01% |
 | wikitext2 (opt-6.7b, streamed) | GPTQ4 per-row | 11.4774 | 11.39 | +0.77% |
+| **wikitext2 (Llama-2-7b mirror, streamed)** | **fp16** | **5.4721** | **5.47** | **+0.04%** |
 
 The opt-6.7b row is the point of the streamed tier: 13.3 GB of fp16 weights evaluated on an
 8 GB GPU at a peak of 1.95 GB VRAM, matching the published number to four decimals.

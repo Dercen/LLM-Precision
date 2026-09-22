@@ -30,6 +30,9 @@ from .. import device as D
 from ..models import families
 
 
+CACHE_ON_DEVICE_FRACTION = 0.6
+
+
 class _CaughtInputs(Exception):
     """Raised by the Catcher to abort the forward pass once block 0 has been reached."""
 
@@ -122,7 +125,12 @@ def resolve_cache_device(
         return torch.device("cpu")
     cache_bytes = 2 * n_windows * seqlen * hidden_size * dtype.itemsize
     budget = D.vram_available_bytes(device) - int(D.VRAM_RESERVE_GB * 1024**3)
-    return device if cache_bytes + extra_bytes < budget else torch.device("cpu")
+    # Only take the card when the cache and the caller's estimate fit inside 60% of
+    # it. The estimates undercount working sets that are hard to enumerate (GPTQ
+    # holds every Hessian of a block at once, AWQ-lite its per-group features and
+    # references); Llama-2-7b AWQ-lite OOMed with the cache on the GPU at a 90%
+    # budget (2026-09-22). A host-RAM cache costs about 1% (PLAN.md 5c).
+    return device if cache_bytes + extra_bytes < CACHE_ON_DEVICE_FRACTION * budget else torch.device("cpu")
 
 
 @torch.no_grad()
