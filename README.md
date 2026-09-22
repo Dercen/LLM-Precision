@@ -16,7 +16,8 @@ for the web-verified version pins and reference numbers behind it.
 | M2 Data + RTN + schema + CI | done |
 | M3 GPTQ + block streaming | done |
 | M4 Runner + plots + AWQ-lite + HQQ | done — 436-row resident matrix, 0 failures |
-| M5 opt-6.7b streamed | fp16 gate passed; quantized gate running |
+| M5 opt-6.7b streamed | done — nine cells within 0.8% of the paper |
+| M6 Llama-2 / Llama-3.1 (mirrors) | running |
 
 ### Reproduced published numbers (opt-125m, fp16 on an RTX 4070)
 
@@ -36,6 +37,8 @@ for the web-verified version pins and reference numbers behind it.
 | wikitext2 (opt-1.3b) | fp16 | 14.6239 | 14.63 | −0.04% |
 | wikitext2 (opt-2.7b) | fp16 | 12.4711 | 12.47 | +0.01% |
 | **wikitext2 (opt-6.7b, streamed)** | **fp16** | **10.8603** | **10.86** | **+0.003%** |
+| wikitext2 (opt-6.7b, streamed) | RTN4 per-row | 12.0992 | 12.10 | −0.01% |
+| wikitext2 (opt-6.7b, streamed) | GPTQ4 per-row | 11.4774 | 11.39 | +0.77% |
 
 The opt-6.7b row is the point of the streamed tier: 13.3 GB of fp16 weights evaluated on an
 8 GB GPU at a peak of 1.95 GB VRAM, matching the published number to four decimals.

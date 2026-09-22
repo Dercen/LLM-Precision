@@ -1,6 +1,6 @@
 # PTQ Bench summary
 
-436 complete rows, 61 joined to a published number.
+444 complete rows, 69 joined to a published number.
 
 ## HuggingFaceTB/SmolLM2-135M · c4_new · fp16 21.3447
 
@@ -215,8 +215,24 @@
 | rtn | 64 | — | — | — | 4,354.26 |
 | rtn | 128 | 22.0112 | 24.5108 | 36.3295 | 18,010.48 |
 
+## facebook/opt-6.7b · c4_new · fp16 12.7121
+
+| algo | gs | 4-bit |
+|---|---|---|
+| gptq | -1 | 13.1715 (paper 13.1800, -0.06%) |
+| rtn | -1 | 14.3730 (paper 14.3600, +0.09%) |
+
+## facebook/opt-6.7b · ptb_new · fp16 15.7699
+
+| algo | gs | 4-bit |
+|---|---|---|
+| gptq | -1 | 16.4841 (paper 16.5600, -0.46%) |
+| rtn | -1 | 18.8578 (paper 18.8400, +0.09%) |
+
 ## facebook/opt-6.7b · wikitext2 · fp16 10.8603
 
-| algo | gs |  |
-|---|---|
+| algo | gs | 4-bit |
+|---|---|---|
+| gptq | -1 | 11.4774 (paper 11.3900, +0.77%) |
+| rtn | -1 | 12.0992 (paper 12.1000, -0.01%) |
 

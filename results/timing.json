@@ -50,9 +50,9 @@
         "source": "derived"
       },
       "facebook/opt-6.7b|torch.float16|streamed": {
-        "seconds_per_window": 1.2398,
-        "windows_measured": 140,
-        "rows": 1,
+        "seconds_per_window": 0.9363,
+        "windows_measured": 1329,
+        "rows": 9,
         "peak_vram_gb": 1.954,
         "source": "derived"
       }
@@ -143,8 +143,17 @@
         "source": "derived",
         "mode": "streamed",
         "quant_seconds_resident": 376.4
+      },
+      "facebook/opt-6.7b|gptq": {
+        "quant_seconds": 856.6,
+        "n_configs": 1,
+        "min": 856.6,
+        "max": 856.6,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 856.6
       }
     },
-    "derived_at": "2026-09-22T02:40:21"
+    "derived_at": "2026-09-22T03:18:55"
   }
 }
