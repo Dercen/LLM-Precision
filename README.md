@@ -12,8 +12,25 @@ for the web-verified version pins and reference numbers behind it.
 | Milestone | State |
 |---|---|
 | M0 Environment | done |
-| M1 First number | done — opt-125m fp16 wikitext2 **27.6559** vs. published 27.65 |
-| M2 Data + RTN + schema | next |
+| M1 First number | done |
+| M2 Data + RTN + schema + CI | done |
+| M3 GPTQ + block streaming | next |
+
+### Reproduced published numbers (opt-125m, fp16 on an RTX 4070)
+
+| Dataset | Algo | Ours | Published | Δ |
+|---|---|---|---|---|
+| wikitext2 | fp16 | 27.6559 | 27.65 | +0.02% |
+| wikitext2 | RTN4 per-row | 37.2831 | 37.28 | +0.008% |
+| wikitext2 | RTN8 | 27.6595 | (≤0.05 of fp) | 0.0036 |
+| ptb_new | fp16 | 38.9917 | 38.99 | +0.00% |
+| ptb_new | RTN4 per-row | 53.8840 | 53.89 | −0.01% |
+| c4_new | fp16 | 26.5637 | 26.56 | +0.01% |
+| c4_new | RTN4 per-row | 33.8850 | 33.91 | −0.07% |
+
+M2 also settled a question the GPTQ README leaves open: its Tables 9 and 11 use the
+`--new-eval` dataset variants, not `get_ptb`/`get_c4`. The plain keys miss by 7–17%
+while the `_new` keys match to 0.1% on two independent columns each. See PLAN.md §7.
 
 ## Quick start
 

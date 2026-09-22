@@ -1,0 +1,95 @@
+# Published perplexities the aggregator joins our rows against. PLAN.md 13.
+#
+# seqlen 2048, fp16. Every row names its source table and the calibration set that
+# table used, so the join can never pair one of our rows with a paper number that
+# was produced under a different calibration (PLAN.md 9.5).
+#
+# dataset_key is OUR key, not the paper's prose. The OPT ptb/c4 rows were
+# protocol_uncertain in the original plan because the GPTQ README does not say
+# whether Tables 9 and 11 used get_ptb/get_c4 or the --new-eval variants. M2
+# resolved this empirically on opt-125m (PLAN.md 7): the --new-eval variants
+# reproduce the published numbers to within 0.1% on both the fp16 and the RTN4
+# column, while the plain keys miss by 7-17%.
+
+meta:
+  protocol_version: 1
+  seqlen: 2048
+  dtype: fp16
+  resolved_at: 2026-09-21
+
+calibrations:
+  gptq_c4: {dataset: c4, nsamples: 128, seqlen: 2048, seed: 0}
+  awq_pile: {dataset: pile_val, nsamples: 128, seqlen: 512}
+  omniquant_wikitext2: {dataset: wikitext2, nsamples: 128, seqlen: 2048}
+
+rows:
+  # ---- OPT, GPTQ paper Tables 3 / 9 / 11 -------------------------------------
+  - {model: facebook/opt-125m, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 27.65, source: gptq, table: "3"}
+  - {model: facebook/opt-125m, dataset_key: wikitext2, algo: rtn,  bits: 4,  group_size: -1, ppl: 37.28, source: gptq, table: "3"}
+  - {model: facebook/opt-125m, dataset_key: wikitext2, algo: gptq, bits: 4,  group_size: -1, ppl: 31.12, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-125m, dataset_key: wikitext2, algo: rtn,  bits: 3,  group_size: -1, ppl: 1300.0, source: gptq, table: "3", approximate: true}
+  - {model: facebook/opt-125m, dataset_key: wikitext2, algo: gptq, bits: 3,  group_size: -1, ppl: 53.85, source: gptq, table: "3", calib: gptq_c4}
+
+  - {model: facebook/opt-125m, dataset_key: ptb_new, algo: fp,   bits: 16, group_size: null, ppl: 38.99, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-125m, dataset_key: ptb_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 53.89, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-125m, dataset_key: ptb_new, algo: gptq, bits: 4,  group_size: -1, ppl: 45.17, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-125m, dataset_key: ptb_new, algo: rtn,  bits: 3,  group_size: -1, ppl: 1400.0, source: gptq, table: "9", approximate: true}
+  - {model: facebook/opt-125m, dataset_key: ptb_new, algo: gptq, bits: 3,  group_size: -1, ppl: 73.19, source: gptq, table: "9", calib: gptq_c4}
+
+  - {model: facebook/opt-125m, dataset_key: c4_new, algo: fp,   bits: 16, group_size: null, ppl: 26.56, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-125m, dataset_key: c4_new, algo: rtn,  bits: 4,  group_size: -1, ppl: 33.91, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-125m, dataset_key: c4_new, algo: gptq, bits: 4,  group_size: -1, ppl: 29.22, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+  - {model: facebook/opt-125m, dataset_key: c4_new, algo: rtn,  bits: 3,  group_size: -1, ppl: 834.0, source: gptq, table: "11", approximate: true}
+  - {model: facebook/opt-125m, dataset_key: c4_new, algo: gptq, bits: 3,  group_size: -1, ppl: 42.41, source: gptq, table: "11", calib: gptq_c4}
+
+  - {model: facebook/opt-350m, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 22.00, source: gptq, table: "3"}
+  - {model: facebook/opt-350m, dataset_key: wikitext2, algo: rtn,  bits: 4,  group_size: -1, ppl: 25.94, source: gptq, table: "3"}
+  - {model: facebook/opt-350m, dataset_key: wikitext2, algo: gptq, bits: 4,  group_size: -1, ppl: 24.24, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-350m, dataset_key: wikitext2, algo: rtn,  bits: 3,  group_size: -1, ppl: 64.57, source: gptq, table: "3"}
+  - {model: facebook/opt-350m, dataset_key: wikitext2, algo: gptq, bits: 3,  group_size: -1, ppl: 33.79, source: gptq, table: "3", calib: gptq_c4}
+
+  - {model: facebook/opt-1.3b, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 14.63, source: gptq, table: "3"}
+  - {model: facebook/opt-1.3b, dataset_key: wikitext2, algo: rtn,  bits: 4,  group_size: -1, ppl: 48.17, source: gptq, table: "3"}
+  - {model: facebook/opt-1.3b, dataset_key: wikitext2, algo: gptq, bits: 4,  group_size: -1, ppl: 15.47, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-1.3b, dataset_key: wikitext2, algo: gptq, bits: 3,  group_size: -1, ppl: 20.97, source: gptq, table: "3", calib: gptq_c4}
+
+  - {model: facebook/opt-6.7b, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 10.86, source: gptq, table: "3"}
+  - {model: facebook/opt-6.7b, dataset_key: wikitext2, algo: rtn,  bits: 4,  group_size: -1, ppl: 12.10, source: gptq, table: "3"}
+  - {model: facebook/opt-6.7b, dataset_key: wikitext2, algo: gptq, bits: 4,  group_size: -1, ppl: 11.39, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-6.7b, dataset_key: wikitext2, algo: gptq, bits: 3,  group_size: -1, ppl: 14.86, source: gptq, table: "3", calib: gptq_c4}
+  - {model: facebook/opt-6.7b, dataset_key: ptb_new,   algo: fp,   bits: 16, group_size: null, ppl: 15.77, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-6.7b, dataset_key: ptb_new,   algo: rtn,  bits: 4,  group_size: -1, ppl: 18.84, source: gptq, table: "9", resolved_from: ptb}
+  - {model: facebook/opt-6.7b, dataset_key: ptb_new,   algo: gptq, bits: 4,  group_size: -1, ppl: 16.56, source: gptq, table: "9", calib: gptq_c4, resolved_from: ptb}
+  - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: fp,   bits: 16, group_size: null, ppl: 12.71, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: rtn,  bits: 4,  group_size: -1, ppl: 14.36, source: gptq, table: "11", resolved_from: c4}
+  - {model: facebook/opt-6.7b, dataset_key: c4_new,    algo: gptq, bits: 4,  group_size: -1, ppl: 13.18, source: gptq, table: "11", calib: gptq_c4, resolved_from: c4}
+
+  # ---- Llama-2-7B, wikitext2 -------------------------------------------------
+  # AWQ Table 4 and OmniQuant Table 1 disagree slightly; both are recorded.
+  # OmniQuant rows are protocol_uncertain: the paper calibrates its OWN method on
+  # 128x2048 WikiText2 segments and never states how its baselines were produced.
+  # RTN is data-free and so unaffected by that ambiguity.
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: fp,   bits: 16, group_size: null, ppl: 5.47, source: awq, table: "4"}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 4, group_size: 128, ppl: 5.73, source: awq, table: "4"}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 4, group_size: 128, ppl: 5.72, source: omniquant, table: "1", protocol_uncertain: true}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: 128, ppl: 5.69, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: 128, ppl: 5.61, source: omniquant, table: "1", protocol_uncertain: true}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 4, group_size: 128, ppl: 5.60, source: awq, table: "4", calib: awq_pile}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 4, group_size: 128, ppl: 5.62, source: omniquant, table: "1", protocol_uncertain: true}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 4, group_size: -1, ppl: 6.11, source: awq, table: "4"}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 4, group_size: -1, ppl: 5.83, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 4, group_size: -1, ppl: 6.15, source: awq, table: "4", calib: awq_pile}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 3, group_size: 128, ppl: 6.66, source: awq, table: "4"}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 3, group_size: 128, ppl: 6.29, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: awq_lite, bits: 3, group_size: 128, ppl: 6.24, source: awq, table: "4", calib: awq_pile}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 3, group_size: -1, ppl: 539.48, source: awq, table: "4"}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 3, group_size: -1, ppl: 8.37, source: awq, table: "4", calib: gptq_c4}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 2, group_size: 128, ppl: 4200.0, source: omniquant, table: "1", approximate: true, protocol_uncertain: true}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 2, group_size: 128, ppl: 36.77, source: omniquant, table: "1", protocol_uncertain: true}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: rtn,  bits: 2, group_size: 64, ppl: 431.97, source: omniquant, table: "1", protocol_uncertain: true}
+  - {model: meta-llama/Llama-2-7b-hf, dataset_key: wikitext2, algo: gptq, bits: 2, group_size: 64, ppl: 20.85, source: omniquant, table: "1", protocol_uncertain: true}
+
+sources:
+  gptq: {name: "GPTQ", cite: "Frantar et al., Accurate Post-Training Quantization for Generative Pre-trained Transformers", url: "https://github.com/IST-DASLab/gptq"}
+  awq: {name: "AWQ", cite: "Lin et al., Activation-aware Weight Quantization"}
+  omniquant: {name: "OmniQuant", cite: "Shao et al., Omnidirectionally Calibrated Quantization"}

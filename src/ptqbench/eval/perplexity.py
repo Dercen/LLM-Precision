@@ -138,7 +138,7 @@ def evaluate(
     peak_ram_before = _rss_gb()
 
     iterator: Any = range(n_windows)
-    if progress:
+    if progress and _is_tty():
         try:
             from tqdm import tqdm
 
@@ -182,10 +182,17 @@ def evaluate(
     )
 
 
+def _is_tty() -> bool:
+    """Progress bars belong on a terminal; in a pipe or log they are just noise."""
+    import sys
+
+    return bool(getattr(sys.stderr, "isatty", lambda: False)())
+
+
 def _rss_gb() -> float:
     try:
         import psutil
 
         return psutil.Process().memory_info().rss / 1024**3
-    except Exception:  # pragma: no cover
+    except Exception:  # noqa: BLE001 - RAM reporting is diagnostic, never fatal.
         return 0.0

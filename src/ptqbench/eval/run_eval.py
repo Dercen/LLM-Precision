@@ -11,6 +11,7 @@ from .. import device as D
 from .. import paths, provenance
 from ..data import datasets as ds
 from ..models import loader as ml
+from ..quantizers import rtn as rtn_mod
 from . import perplexity as ppl
 
 PROTOCOL_VERSION = 1
@@ -41,6 +42,10 @@ def run_single_eval(
     ce_chunk: int = ppl.DEFAULT_CE_CHUNK,
     dtype_override: str | None = None,
     deterministic: bool = False,
+    algo: str = "fp",
+    bits: int = 16,
+    group_size: int = -1,
+    sym: bool = False,
     write: bool = True,
 ) -> dict[str, Any]:
     paths.ensure_dirs()
@@ -49,6 +54,24 @@ def run_single_eval(
 
     started = provenance.utc_now()
     loaded = ml.load(model_id, device=device, dtype=ml.parse_dtype(dtype_override))
+
+    quant_fields: dict[str, Any] = {
+        "algo": "fp",
+        "bits": 16,
+        "group_size": None,
+        "sym": None,
+        "quant_seconds": 0.0,
+    }
+    if algo == "fp":
+        pass
+    elif algo == "rtn":
+        report = rtn_mod.apply_rtn(
+            loaded.model, bits=bits, group_size=group_size, sym=sym
+        )
+        quant_fields = report.as_row_fields()
+    else:
+        raise ValueError(f"unknown algo {algo!r}; available: fp, rtn")
+
     stream = ds.build(dataset_key, loaded.tokenizer, seqlen=seqlen)
 
     result = ppl.evaluate(
@@ -63,8 +86,10 @@ def run_single_eval(
         {
             "model": model_id,
             "revision": loaded.revision,
-            "algo": "fp",
-            "bits": 16,
+            "algo": algo,
+            "bits": quant_fields["bits"],
+            "group_size": quant_fields["group_size"],
+            "sym": quant_fields["sym"],
             "dtype": str(loaded.dtype),
         }
     )
@@ -93,10 +118,7 @@ def run_single_eval(
         "model": model_id,
         "model_revision": loaded.revision,
         "tokenizer_class": loaded.tokenizer_class,
-        "algo": "fp",
         "backend": "torch",
-        "bits": 16,
-        "group_size": None,
         "dataset": dataset_key,
         "split": stream.split,
         "join": stream.join,
@@ -106,9 +128,9 @@ def run_single_eval(
         "device": str(device),
         "attn_implementation": loaded.attn_implementation,
         "model_bytes": loaded.model_bytes,
+        **quant_fields,
         **result.as_row_fields(),
         "paper_comparable": paper_comparable,
-        "quant_seconds": 0.0,
         "status": "ok",
         "reason": None,
         "started_at": started,

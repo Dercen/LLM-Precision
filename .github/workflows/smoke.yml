@@ -1,0 +1,47 @@
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      # hqq's setup.py flag: stops its sdist shelling out to a CUDA build.
+      DISABLE_CUDA: "1"
+      UV_NO_SYNC: "1"
+      HF_HOME: ${{ github.workspace }}/.hf
+      PTQ_CACHE_DIR: ${{ github.workspace }}/.ptq-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.17"
+          enable-cache: true
+
+      - name: Cache Hugging Face assets
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HF_HOME }}
+          key: hf-${{ runner.os }}-opt125m-wikitext2-v1
+
+      - name: Sync (CPU wheels)
+        run: uv sync --extra cpu --extra dev
+
+      - name: env-check
+        run: uv run --no-sync ptq env-check --no-require-cuda
+
+      - name: Lint
+        run: uv run --no-sync ruff check src tests
+
+      - name: Unit tests
+        run: uv run --no-sync pytest -q -m "smoke and not gpu"
+
+      - name: End-to-end eval (4 windows)
+        run: |
+          uv run --no-sync ptq eval --model facebook/opt-125m \
+            --dataset wikitext2 --max-windows 4 --no-write

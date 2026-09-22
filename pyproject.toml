@@ -52,6 +52,11 @@ testpaths = ["tests"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint.per-file-ignores]
+# Vendored verbatim from IST-DASLab/gptq -- its style is upstream's business,
+# and the point of the file is that it is NOT edited.
+"tests/reference/*.py" = ["ALL"]
+
 [tool.uv]
 conflicts = [[{ extra = "cpu" }, { extra = "cu126" }, { extra = "cu130" }]]
 # no-build-isolation-package = ["gptqmodel"]   # uncommented at M6

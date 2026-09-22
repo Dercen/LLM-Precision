@@ -2,14 +2,23 @@
   "_comment": "seconds_per_window per (hostname, model, dtype, eval_mode). Measured, not estimated. PLAN.md 2b.",
   "pop-os": {
     "device": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "vram_total_gb": 7.62,
     "measured_at": "2026-09-21",
     "entries": {
       "facebook/opt-125m|torch.float16|resident": {
-        "seconds_per_window": 0.0243,
-        "n_windows": 140,
+        "seconds_per_window": 0.0234,
+        "windows_per_second": 42.8,
+        "n_windows_measured": 140,
         "dataset": "wikitext2",
         "ce_chunk": 256,
         "peak_vram_gb": 0.348
+      }
+    },
+    "quantization": {
+      "facebook/opt-125m|rtn": {
+        "quant_seconds": 0.12,
+        "n_modules": 72,
+        "note": "data-free; independent of bits and group_size"
       }
     }
   }

@@ -88,7 +88,8 @@ def cmd_env_check(args: argparse.Namespace) -> int:
                 y = torch.randn(512, 512, device=dev, dtype=torch.bfloat16)
                 _ = (y @ y).float().sum().item()
                 print(_fmt("bf16 matmul", "ok"))
-        except Exception as exc:  # pragma: no cover
+        except Exception as exc:  # noqa: BLE001 - env-check reports every failure
+            # mode as a problem rather than crashing; that is the whole point of it.
             problems.append(f"GPU sanity matmul failed: {exc}")
 
     if args.json:
@@ -128,6 +129,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
         ce_chunk=args.ce_chunk,
         dtype_override=args.dtype,
         deterministic=args.deterministic,
+        algo=args.algo,
+        bits=args.bits,
+        group_size=args.group_size,
+        sym=args.sym,
         write=not args.no_write,
     )
     print(json.dumps(row, indent=2, default=str))
@@ -161,6 +166,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--max-windows", type=int, default=None)
     p_eval.add_argument("--ce-chunk", type=int, default=256, help="0 disables chunking")
     p_eval.add_argument("--dtype", default=None, help="override the family dtype policy")
+    p_eval.add_argument("--algo", default="fp", choices=["fp", "rtn"])
+    p_eval.add_argument("--bits", type=int, default=16)
+    p_eval.add_argument(
+        "--group-size", type=int, default=-1, help="-1 for per-row, else 128 / 64"
+    )
+    p_eval.add_argument("--sym", action="store_true", help="symmetric quantization")
     p_eval.add_argument("--no-write", action="store_true", help="do not write results/runs/*.json")
     p_eval.set_defaults(func=cmd_eval)
 

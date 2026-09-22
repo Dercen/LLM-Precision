@@ -5,7 +5,7 @@ from __future__ import annotations
 import platform
 import socket
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from importlib import metadata
 from typing import Any
@@ -31,7 +31,7 @@ TRACKED_PACKAGES = (
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 @lru_cache(maxsize=1)
@@ -91,7 +91,7 @@ def _cpu_count() -> int | None:
         import psutil
 
         return psutil.cpu_count(logical=False)
-    except Exception:  # pragma: no cover
+    except Exception:  # noqa: BLE001 - psutil is optional; fall back to stdlib.
         import os
 
         return os.cpu_count()
@@ -103,7 +103,8 @@ def hf_model_revision(repo_id: str) -> str:
         from huggingface_hub import model_info
 
         return model_info(repo_id).sha or "unknown"
-    except Exception:  # offline, gated, or hub error -- never fatal
+    except Exception:  # noqa: BLE001 - offline, gated, rate-limited, any hub error;
+        # a missing revision must degrade the row, never abort the run.
         return "unknown"
 
 
