@@ -10,6 +10,7 @@ from ptqbench.data import datasets as ds
 TOKENIZER_CLASSES = {
     "facebook/opt-125m": "GPT2Tokenizer",
     "HuggingFaceTB/SmolLM2-135M": "GPT2Tokenizer",
+    "NousResearch/Llama-2-7b-hf": "LlamaTokenizer",
 }
 
 
@@ -51,3 +52,27 @@ def test_windows_are_non_overlapping_and_exact(opt_tokenizer):
     first, second = stream.window(0), stream.window(1)
     assert first.shape == (1, 2048) and second.shape == (1, 2048)
     assert not (first == second).all()
+
+
+@pytest.fixture(scope="module")
+def llama_tokenizer():
+    from transformers import AutoTokenizer
+
+    from ptqbench import config as C
+    from ptqbench import paths
+
+    spec = C.load_model("llama-2-7b").with_mirror()
+    return AutoTokenizer.from_pretrained(spec.repo, cache_dir=str(paths.hf_home()), revision=spec.revision)
+
+
+@pytest.mark.smoke
+def test_llama2_tokenizer_class_and_windows(llama_tokenizer):
+    """PLAN.md 5.1 / 5.6 for the Llama family, measured 2026-09-22 on the pinned mirror."""
+    assert type(llama_tokenizer).__name__ == TOKENIZER_CLASSES["NousResearch/Llama-2-7b-hf"]
+    stream = ds.build("wikitext2", llama_tokenizer, seqlen=2048)
+    assert stream.n_windows == 166
+    assert stream.ids[0, 0].item() == llama_tokenizer.bos_token_id, "one BOS at the stream start"
+    assert stream.ids[0, 1:].eq(llama_tokenizer.bos_token_id).sum() == 0, "and nowhere else"
+    assert stream.first_token_hash() == "f3c95364766921f6"
+    c4 = ds.build("c4_new", llama_tokenizer, seqlen=2048)
+    assert c4.n_windows == 256 and c4.first_token_hash() == "049bab220bbdc351"
