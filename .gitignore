@@ -44,3 +44,6 @@ outputs/
 Thumbs.db
 .vscode/
 .idea/
+
+# LibreOffice lock files
+.~lock.*#
