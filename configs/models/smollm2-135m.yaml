@@ -1,0 +1,6 @@
+repo: HuggingFaceTB/SmolLM2-135M
+revision: 93efa2f097d58c2a74874c7e644dbc9b0cee75a2
+tokenizer_class: GPT2Tokenizer
+family: llama
+extra_group_sizes: [64]   # hidden 576 = 9 x 64 is not divisible by 128
+notes: 0.27 GB. Llama architecture at toy size.

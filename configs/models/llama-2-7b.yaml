@@ -1,0 +1,7 @@
+repo: meta-llama/Llama-2-7b-hf
+gated: true
+mirror: NousResearch/Llama-2-7b-hf
+mirror_revision: 8efe6c9b93655b934e27bd9981e3ec13e55aee9d
+tokenizer_class: LlamaTokenizer
+family: llama
+notes: 13.5 GB, streamed. Gated; falls back to the ungated mirror.

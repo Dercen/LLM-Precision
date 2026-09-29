@@ -15,7 +15,7 @@ from typing import Any
 import torch
 
 # Model-family dtype policy (DESIGN.md 2). CPU always gets fp32.
-_BF16_FAMILIES = ("llama-3", "llama3", "meta-llama-3")
+_BF16_FAMILIES = ("llama-3", "llama3", "meta-llama-3", "gemma")  # Gemma overflows fp16
 
 
 @dataclass(frozen=True)
@@ -170,7 +170,7 @@ def resolve(spec: str = "auto") -> torch.device:
 
 
 def dtype_for(model_id: str, device: torch.device) -> torch.dtype:
-    """DESIGN.md 2: fp16 for OPT and Llama-2, bf16 for Llama-3, fp32 on CPU."""
+    """DESIGN.md 2: fp16 for OPT and Llama-2, bf16 for Llama-3 and Gemma, fp32 on CPU."""
     if device.type == "cpu":
         return torch.float32
     lowered = model_id.lower()

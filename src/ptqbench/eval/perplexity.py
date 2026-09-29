@@ -56,6 +56,23 @@ class PerplexityResult:
         }
 
 
+def output_head(model) -> Any:
+    """lm_head, plus Gemma-2's final logit soft-capping when the config asks for it.
+
+    The chunked path calls the head directly instead of model.forward, so anything
+    forward applies after lm_head has to be applied here too.
+    """
+    head = model.get_output_embeddings()
+    cap = getattr(getattr(model.config, "get_text_config", lambda: model.config)(), "final_logit_softcapping", None)
+    if head is None or not cap:
+        return head
+
+    def capped(hidden: torch.Tensor) -> torch.Tensor:
+        return torch.tanh(head(hidden) / cap) * cap
+
+    return capped
+
+
 def _decoder_and_head(model) -> tuple[Any, Any] | None:
     """The pre-lm_head module and the lm_head, when the model exposes them cleanly.
 
@@ -63,7 +80,7 @@ def _decoder_and_head(model) -> tuple[Any, Any] | None:
     """
     try:
         decoder = model.get_decoder()
-        head = model.get_output_embeddings()
+        head = output_head(model)
     except (AttributeError, NotImplementedError):
         return None
     if decoder is None or head is None:
@@ -241,7 +258,7 @@ def evaluate_streamed(
     nll_sum = 0.0
     per_window: list[float] = []
     started = time.perf_counter()
-    head = model.get_output_embeddings()
+    head = output_head(model)
 
     with streaming.BlockStreamer(model, fam, device, offload=offload) as streamer:
         post = streamer.post_block_modules()

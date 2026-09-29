@@ -1,0 +1,7 @@
+repo: google/gemma-3-1b-pt
+gated: true
+mirror: unsloth/gemma-3-1b-pt
+mirror_revision: 34a98bf3eaecc08c699516f625eb5e56e4c5d99d
+tokenizer_class: GemmaTokenizer
+family: gemma
+notes: 2.0 GB bf16. Gated; falls back to the ungated mirror. No AWQ-lite scale groups.

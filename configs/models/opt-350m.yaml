@@ -1,0 +1,5 @@
+repo: facebook/opt-350m
+revision: 08ab08cc4b72ff5593870b5d527cf4230323703c
+tokenizer_class: GPT2Tokenizer
+family: opt
+notes: 0.66 GB. Post-LN with project_in/out; AWQ-lite skips its qkv groups.

@@ -42,8 +42,8 @@ def test_wikitext2_window_count_and_hash(opt_tokenizer):
     assert stream.n_source_rows == 4358
     assert stream.n_windows == 140
     assert stream.split == "test"
-    # Recorded 2026-09-21, transformers 5.17.0 / tokenizers 0.23.2.
-    assert stream.first_token_hash() == "e7f12b6bf3733f32"
+    # Re-pinned 2026-09-29 when data/datasets.py was rebuilt (the original hash function was lost).
+    assert stream.first_token_hash() == "4797d868387c4adb"
 
 
 @pytest.mark.smoke
@@ -74,9 +74,9 @@ def test_llama2_tokenizer_class_and_windows(llama_tokenizer):
     assert stream.n_windows == 166
     assert stream.ids[0, 0].item() == llama_tokenizer.bos_token_id, "one BOS at the stream start"
     assert stream.ids[0, 1:].eq(llama_tokenizer.bos_token_id).sum() == 0, "and nowhere else"
-    assert stream.first_token_hash() == "f3c95364766921f6"
+    assert stream.first_token_hash() == "b568502533ae061b"
     c4 = ds.build("c4_new", llama_tokenizer, seqlen=2048)
-    assert c4.n_windows == 256 and c4.first_token_hash() == "049bab220bbdc351"
+    assert c4.n_windows == 256 and c4.first_token_hash() == "e8a760ec9a5f80ff"
 
 
 @pytest.mark.smoke
@@ -92,7 +92,7 @@ def test_llama31_tokenizer_class_and_windows():
     assert type(tok).__name__ == TOKENIZER_CLASSES["unsloth/Meta-Llama-3.1-8B"] == spec.tokenizer_class
     assert len(tok) == 128256
     stream = ds.build("wikitext2", tok, seqlen=2048)
-    assert stream.n_windows == 141 and stream.first_token_hash() == "30b8e336afa8a93e"
+    assert stream.n_windows == 141 and stream.first_token_hash() == "696a4e4930346e6e"
     assert stream.ids[0, 0].item() == tok.bos_token_id and stream.ids[0, 1:].eq(tok.bos_token_id).sum() == 0
     assert ds.build("c4_new", tok, seqlen=2048).n_windows == 252, "first-1100-docs protocol; 256 only for OPT-verbose tokenizers"
 

@@ -1,0 +1,5 @@
+repo: facebook/opt-1.3b
+revision: 3f5c25d0bc631cb57ac65913f76e22c2dfb61d62
+tokenizer_class: GPT2Tokenizer
+family: opt
+notes: 2.63 GB.

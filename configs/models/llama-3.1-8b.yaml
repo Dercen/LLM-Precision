@@ -1,0 +1,7 @@
+repo: meta-llama/Llama-3.1-8B
+gated: true
+mirror: unsloth/Meta-Llama-3.1-8B
+mirror_revision: e9a141a2091ea561b96483212645a2a05e6f99fc
+tokenizer_class: TokenizersBackend
+family: llama
+notes: 16.1 GB bf16, streamed. Gated; falls back to the ungated mirror.

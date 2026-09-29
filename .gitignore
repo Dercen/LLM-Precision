@@ -13,11 +13,13 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
-# Model weights, dataset caches, quantized checkpoints (never commit)
-models/
-weights/
-checkpoints/
-data/
+# Model weights, dataset caches, quantized checkpoints (never commit). Anchored to the
+# repo root: unanchored `models/` and `data/` also swallowed src/ptqbench/models and
+# src/ptqbench/data, which were never committed.
+/models/
+/weights/
+/checkpoints/
+/data/
 hf_cache/
 *.safetensors
 *.bin

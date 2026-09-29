@@ -1,0 +1,5 @@
+repo: facebook/opt-6.7b
+revision: a45aa65bbeb77c1558bc99bedc6779195462dab0
+tokenizer_class: GPT2Tokenizer
+family: opt
+notes: 13.3 GB. Streamed on 8 GB.

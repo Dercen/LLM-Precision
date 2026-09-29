@@ -1,0 +1,7 @@
+repo: google/gemma-2-2b
+gated: true
+mirror: unsloth/gemma-2-2b
+mirror_revision: 25319945f7fd83b8b903e12081777b7eef2ba993
+tokenizer_class: GemmaTokenizer
+family: gemma
+notes: 5.2 GB bf16. Logit soft-capping. Gated; falls back to the ungated mirror. No AWQ-lite scale groups.

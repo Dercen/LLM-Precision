@@ -1,0 +1,5 @@
+repo: facebook/opt-125m
+revision: 27dcfa74d334bc871f3234de431e71c6eeba5dd6
+tokenizer_class: GPT2Tokenizer
+family: opt
+notes: 0.25 GB. The M1/M2 parity model.

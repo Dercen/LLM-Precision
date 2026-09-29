@@ -1,0 +1,5 @@
+repo: facebook/opt-2.7b
+revision: 905a4b602cda5c501f1b3a2650a4152680238254
+tokenizer_class: GPT2Tokenizer
+family: opt
+notes: 5.30 GB. Resident for evaluation, streamed for GPTQ/AWQ-lite on 8 GB.
