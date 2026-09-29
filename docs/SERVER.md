@@ -20,7 +20,7 @@ uv sync --extra cu130 --extra hqq --extra dev    # or --extra cu126 on an older 
 uv run ptq env-check && uv run pytest -m smoke
 ```
 
-Code moves by git; results return as JSON files: `rsync -av --exclude '*.log' user@server:~/ptq-bench/results/runs/ results/runs/`, and the aggregator dedupes by `run_id`. (v1's `pull_results.ps1` / `scp` workaround existed only because Git Bash ships no rsync; both machines are Linux now.)
+Code moves by git; results return as JSON files: `rsync -av --exclude '*.log' user@server:~/ptq-bench/results/raw/runs/ results/raw/runs/`, and the aggregator dedupes by `run_id`. (v1's `pull_results.ps1` / `scp` workaround existed only because Git Bash ships no rsync; both machines are Linux now.)
 
 Plain SSH box: `tmux new -s ptq`, `source scripts/env.sh`, `uv run ptq prefetch configs/experiments/streamed_llama.yaml`, then one loop per GPU: `CUDA_VISIBLE_DEVICES=$i nohup uv run --frozen --no-sync ptq run $CFG --shard $i/$N > results/logs/worker$i.log 2>&1 &`.
 

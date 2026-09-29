@@ -1,6 +1,6 @@
 # PTQ Bench summary
 
-444 complete rows, 69 joined to a published number.
+470 complete rows, 83 joined to a published number.
 
 ## HuggingFaceTB/SmolLM2-135M · c4_new · fp16 21.3447
 
@@ -235,4 +235,27 @@
 |---|---|---|
 | gptq | -1 | 11.4774 (paper 11.3900, +0.77%) |
 | rtn | -1 | 12.0992 (paper 12.1000, -0.01%) |
+
+## meta-llama/Llama-2-7b-hf · wikitext2 · fp16 5.4721
+
+| algo | gs | 4-bit | 3-bit | 2-bit |
+|---|---|---|---|---|
+| awq_lite | 128 | 5.6380 (paper 5.6200, +0.32%) | 6.3328 | — |
+| gptq | -1 | 5.8303 (paper 5.8300, +0.00%) | 8.5453 (paper 8.3700, +2.09%) | — |
+| gptq | 64 | — | — | 26.7500 (paper 20.8500, +28.30%) |
+| gptq | 128 | 5.6346 (paper 5.6900, -0.97%) | 6.3624 (paper 6.2900, +1.15%) | 54.7706 (paper 36.7700, +48.95%) |
+| rtn | -1 | 6.1162 (paper 6.1100, +0.10%) | 542.71 (paper 539.48, +0.60%) | — |
+| rtn | 64 | — | — | 432.88 (paper 431.97, +0.21%) |
+| rtn | 128 | 5.7244 (paper 5.7300, -0.10%) | 6.6636 (paper 6.6600, +0.05%) | 4,270.61 (paper 4,200.00, +1.68%) |
+
+## meta-llama/Llama-3.1-8B · wikitext2 · fp16 6.2401
+
+| algo | gs | 4-bit | 3-bit | 2-bit |
+|---|---|---|---|---|
+| awq_lite | 128 | 6.6768 | 8.3556 | — |
+| gptq | -1 | 7.3027 | 26.1544 | — |
+| gptq | 64 | — | — | 160.41 |
+| gptq | 128 | 6.6088 | 8.3351 | 592.07 |
+| rtn | -1 | 8.3452 | — | — |
+| rtn | 128 | 6.8252 | — | — |
 

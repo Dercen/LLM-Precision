@@ -61,7 +61,7 @@ Per-block VRAM while streaming is one decoder block (≤ 0.5 GB for 8B) plus the
 
 ### 2b. Time
 
-The v1 CPU estimates are void. Measured `seconds_per_window` per (model, eval_mode) goes into `results/timing.json` at M1 and M5, and `--dry-run` sizes every later run from it. Expectations to be replaced by measurement:
+The v1 CPU estimates are void. Measured `seconds_per_window` per (model, eval_mode) goes into `results/raw/timing.json` at M1 and M5, and `--dry-run` sizes every later run from it. Expectations to be replaced by measurement:
 
 | Work | v1 (CPU) | Expected here |
 |---|---|---|

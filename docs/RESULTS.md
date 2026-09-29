@@ -1,8 +1,9 @@
 # PTQ Bench — results and findings
 
-One paragraph per finding, with the numbers that support it. Tables:
-[`results/summary.md`](../results/summary.md); figures: `results/plots/`; every row:
-`results/runs/*.json` (aggregated in `results/results.csv`). Method and protocol:
+One paragraph per finding, with the numbers that support it. Per-model pages:
+[`results/by-model/`](../results/by-model/README.md); tables:
+[`results/tables/summary.md`](../results/tables/summary.md); figures: `results/plots/`; every row:
+`results/raw/runs/*.json` (aggregated in `results/tables/results.csv`). Method and protocol:
 [DESIGN.md](DESIGN.md). All numbers are fp16 (bf16 for Llama-3.1) on an RTX 4070 Laptop
 GPU (8 GB), WikiText-2 / C4 / PTB test perplexity at 2048-token windows, unless stated.
 

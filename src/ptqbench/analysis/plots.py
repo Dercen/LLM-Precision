@@ -198,7 +198,7 @@ def plot_delta_heatmap(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
 
 def plot_all(models: list[str] | None = None, csv_path: Path | None = None) -> list[Path]:
     _style()
-    csv_path = csv_path or paths.results_dir() / "results.csv"
+    csv_path = csv_path or paths.tables_dir() / "results.csv"
     if not csv_path.is_file():
         from .aggregate import aggregate
 

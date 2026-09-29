@@ -189,12 +189,17 @@ def cmd_aggregate(args: argparse.Namespace) -> int:
 
 
 def cmd_plot(args: argparse.Namespace) -> int:
+    import pandas as pd
+
     from .analysis import plots
+    from .analysis.aggregate import write_by_model
 
     written = plots.plot_all(models=args.models)
     for path in written:
         print(path)
     print(f"{len(written)} figure(s) -> {paths.plots_dir()}")
+    # The by-model pages embed only charts that exist; refresh them now that these do.
+    write_by_model(pd.read_csv(paths.tables_dir() / "results.csv"))
     return OK
 
 
@@ -269,7 +274,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="auto picks streamed when free VRAM < 1.3 x model bytes (DESIGN.md 2a)",
     )
     p_eval.add_argument("--stream-window-batch", type=int, default=32)
-    p_eval.add_argument("--no-write", action="store_true", help="do not write results/runs/*.json")
+    p_eval.add_argument("--no-write", action="store_true", help="do not write results/raw/runs/*.json")
     p_eval.set_defaults(func=cmd_eval)
 
     p_run = sub.add_parser("run", help="run a YAML experiment matrix")
@@ -283,10 +288,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--no-quant-cache", action="store_true")
     p_run.set_defaults(func=cmd_run)
 
-    p_agg = sub.add_parser("aggregate", help="results/runs -> results.csv + summary.md")
+    p_agg = sub.add_parser("aggregate", help="results/raw/runs -> results/tables/ + results/by-model/")
     p_agg.set_defaults(func=cmd_aggregate)
 
-    p_plot = sub.add_parser("plot", help="results.csv -> results/plots/*.png")
+    p_plot = sub.add_parser("plot", help="results/tables/results.csv -> results/plots/*.png")
     p_plot.add_argument("--models", nargs="*", default=None, help="model keys to plot (default all)")
     p_plot.set_defaults(func=cmd_plot)
 

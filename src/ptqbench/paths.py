@@ -51,11 +51,25 @@ def dataset_cache_dir() -> Path:
 
 
 def results_dir() -> Path:
+    """results/: README.md (the guide), by-model/, tables/, plots/, raw/."""
     return repo_root() / "results"
 
 
+def raw_dir() -> Path:
+    """Machine-written inputs to everything else: run rows and timing."""
+    return results_dir() / "raw"
+
+
 def runs_dir() -> Path:
-    return results_dir() / "runs"
+    return raw_dir() / "runs"
+
+
+def tables_dir() -> Path:
+    return results_dir() / "tables"
+
+
+def by_model_dir() -> Path:
+    return results_dir() / "by-model"
 
 
 def logs_dir() -> Path:
@@ -67,7 +81,7 @@ def plots_dir() -> Path:
 
 
 def timing_file() -> Path:
-    return results_dir() / "timing.json"
+    return raw_dir() / "timing.json"
 
 
 def configs_dir() -> Path:
@@ -89,6 +103,8 @@ def ensure_dirs() -> None:
         dataset_cache_dir(),
         runs_dir(),
         logs_dir(),
+        tables_dir(),
+        by_model_dir(),
         plots_dir(),
     ):
         d.mkdir(parents=True, exist_ok=True)

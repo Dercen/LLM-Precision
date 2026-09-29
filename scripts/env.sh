@@ -26,5 +26,5 @@ export UV_NO_SYNC=1
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-$(nproc --all 2>/dev/null | awk '{print int($1/2)}')}"
 export TOKENIZERS_PARALLELISM=false
 
-mkdir -p results/runs results/logs results/slurm 2>/dev/null || true
+mkdir -p results/raw/runs results/logs results/slurm 2>/dev/null || true
 unset _ptq_root

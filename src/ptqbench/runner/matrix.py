@@ -77,7 +77,7 @@ def plan(exp_path: str | Path, *, filter_text: str | None = None, shard: str | N
 
 
 def estimate_seconds(groups: list[tuple[str, list[C.RunSpec]]], hostname: str | None = None) -> tuple[float, list[str]]:
-    """From results/timing.json; returns (seconds, notes about missing entries)."""
+    """From results/raw/timing.json; returns (seconds, notes about missing entries)."""
     import socket
 
     host = hostname or socket.gethostname()
@@ -85,7 +85,7 @@ def estimate_seconds(groups: list[tuple[str, list[C.RunSpec]]], hostname: str | 
     try:
         timing = json.loads(paths.timing_file().read_text(encoding="utf-8")).get(host, {})
     except (OSError, json.JSONDecodeError):
-        timing, notes = {}, ["no results/timing.json for this host"]
+        timing, notes = {}, ["no results/raw/timing.json for this host"]
     entries = timing.get("entries", {})
     quant = timing.get("quantization", {})
     # windows per dataset key, from the measured counts (OPT tokenizer; close enough for estimates)

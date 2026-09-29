@@ -6,7 +6,7 @@ Post-training-quantization perplexity benchmark for LLMs: how much does perplexi
 degrade as weights are stored at fewer bits, and how much of that loss does each
 quantization algorithm recover?
 
-Method and protocol: [docs/DESIGN.md](docs/DESIGN.md). Findings with numbers: [docs/RESULTS.md](docs/RESULTS.md).
+New here? Read [HOW-IT-WORKS.md](HOW-IT-WORKS.md) first. Method and protocol: [docs/DESIGN.md](docs/DESIGN.md). Findings with numbers: [docs/RESULTS.md](docs/RESULTS.md).
 Running on a cluster: [docs/SERVER.md](docs/SERVER.md). The original plans are archived under `docs/`.
 
 ## Status
@@ -44,8 +44,8 @@ The opt-6.7b row is the point of the streamed tier: 13.3 GB of fp16 weights eval
 ### The resident matrix (five models × five methods × four bit widths × three datasets)
 
 436 rows, 61 of them against a published number: fp16 within 0.04% everywhere, GPTQ within
-1.2% on average, opt-2.7b GPTQ4 per-row 12.917 vs 12.87. Full tables in `results/summary.md`,
-figures in `results/plots/`. Two published RTN cells (OPT-1.3B on PTB and C4) could not be
+1.2% on average, opt-2.7b GPTQ4 per-row 12.917 vs 12.87. Start at `results/README.md`: one plain-language
+page per model in `results/by-model/`, full tables in `results/tables/`, figures in `results/plots/`. Two published RTN cells (OPT-1.3B on PTB and C4) could not be
 reproduced despite the same weights matching on WikiText-2 — see docs/RESULTS.md.
 
 4-bit g128 on WikiText-2 (lower is better):
@@ -75,10 +75,10 @@ AWQ-lite beats RTN at the same grid on both families: opt-125m 4-bit g128 30.48 
 ## Running the matrix
 
 ```bash
-uv run ptq run configs/experiments/resident_full.yaml --dry-run   # estimate from results/timing.json
+uv run ptq run configs/experiments/resident_full.yaml --dry-run   # estimate from results/raw/timing.json
 uv run ptq run configs/experiments/resident_full.yaml             # resumable; Ctrl-C finishes the row
 uv run ptq run ... --filter "algo=gptq bits=4" --shard 0/2         # subsets and sharding
-uv run ptq aggregate && uv run ptq plot                           # results.csv, summary.md, plots/
+uv run ptq aggregate && uv run ptq plot                           # tables/, by-model/, plots/
 uv run ptq cache ls                                               # quantized-weight cache
 ```
 
@@ -96,7 +96,7 @@ uv run ptq            # or: uv run ptq wizard
 Arrow-key menus for model → datasets → method → bits → group size, a one-line plan to
 confirm, then a table with your perplexity next to the published number. "Quick preview"
 runs 20 windows (marked partial) when you just want a look. A wizard row is the same row
-`ptq run` would produce — same ids, same schema — so it lands in `results/runs/` and shows
+`ptq run` would produce — same ids, same schema — so it lands in `results/raw/runs/` and shows
 up in `ptq aggregate` and `ptq plot`. Add `--device cpu` to try it while the GPU is busy.
 
 ## Quick start (new machine)
@@ -133,7 +133,7 @@ uv run ptq                                               # the wizard
 - Models and datasets download on first use into `~/ml/hf` (`$SCRATCH/hf` on a cluster).
   `uv run ptq prefetch configs/experiments/<name>.yaml` fetches everything an experiment
   needs up front — do that before a queued or offline job.
-- Result rows are one JSON file each under `results/runs/`, so rows from several machines
+- Result rows are one JSON file each under `results/raw/runs/`, so rows from several machines
   merge by plain git or rsync and `uv run ptq aggregate` dedupes them by `run_id`.
 - Cluster specifics (SLURM script, `--shard k/n` across GPUs, offline flags): `docs/SERVER.md`.
 
