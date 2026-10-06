@@ -2,19 +2,32 @@ version = 1
 revision = 3
 requires-python = ">=3.12, <3.14"
 resolution-markers = [
-    "sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
 ]
 conflicts = [[
     { package = "ptq-bench", extra = "cpu" },
@@ -341,7 +354,8 @@ name = "cuda-bindings"
 version = "12.9.8"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "cuda-pathfinder", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cu126') or (sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130') or (sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -360,7 +374,8 @@ name = "cuda-bindings"
 version = "13.4.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "cuda-pathfinder", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -389,7 +404,8 @@ name = "cuda-toolkit"
 version = "12.6.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ad/88/2dbc37975fffb874418b14380418a1b99cb36f2101fd1d08c54e06ee8c95/cuda_toolkit-12.6.3-py2.py3-none-any.whl", hash = "sha256:79d8605baeb6c2f695761e0efb54bc62dbc3c9e32eb0742df7669c07befaa8f7", size = 2288, upload-time = "2025-08-13T02:03:05.283Z" },
@@ -432,7 +448,8 @@ name = "cuda-toolkit"
 version = "13.0.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/c7/a79086a62c98befcdb8349656c6f114e2db3b8b2422f6e25c97a7f2a9a3c/cuda_toolkit-13.0.3.0-py2.py3-none-any.whl", hash = "sha256:d693caaa261214ddd7dbb60d68e71cbed884e68c2be7509778f3051da0b91c3f", size = 2512, upload-time = "2026-04-14T00:50:08.173Z" },
@@ -1040,6 +1057,27 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "ml-dtypes"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/72/307d7c4bd0600601c7133fba5cb78af7db968152951c1cd473abb1cda782/ml_dtypes-0.6.0.tar.gz", hash = "sha256:5e60251d32ced5598972e4d5e06a2f044341f9291402551a3f6f0ec44f9299b0", size = 3032327, upload-time = "2026-08-13T14:14:40.215Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/6a/441eb053b078954f7fea284dfb288701884d0a1404d39babb858e1649023/ml_dtypes-0.6.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:5359c588cc62de6f78d7430f06b65853d884955494d86d6ad90b6dd64a3f3a08", size = 565447, upload-time = "2026-08-13T14:14:01.737Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/cf/87e8a6c57eed63a91782a0d229856ddf73e138ce004dd71e2799a9dcdb33/ml_dtypes-0.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:37da32aa97749251025666d62372775019594577b9c9e9cfda83bed48d778fdb", size = 360227, upload-time = "2026-08-13T14:14:02.938Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/f9/7d76c1eae866f5d4636401b31b6d6dd90e4b4ced1fa7cfdfcca9c60e4bd3/ml_dtypes-0.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3b4a480aa8fd54a1805b8ac10f3f91763926a74f73c0c364c10f9231854f4170", size = 409890, upload-time = "2026-08-13T14:14:04.248Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/db/9c61ec2760b5cbfb1c6558d5c991a6d8fd3271053c32db20506a9a90272b/ml_dtypes-0.6.0-cp312-cp312-win_amd64.whl", hash = "sha256:2a3e9d53925597fbffafd2a37048dadeddd0bdaba58058f6ae0869ed709a184d", size = 439333, upload-time = "2026-08-13T14:14:05.501Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/57/780ca3e5ab135b9fbdd8e5441abf5f801b30398371b691291e05ab9834c0/ml_dtypes-0.6.0-cp312-cp312-win_arm64.whl", hash = "sha256:6eaed129a4afe90694b8685e2f9b6294849f5eda4af9a15be83a4326eeebd775", size = 552268, upload-time = "2026-08-13T14:14:06.866Z" },
+    { url = "https://files.pythonhosted.org/packages/50/51/fd1582b8f5ed8a9e7be0e161a6ea0dff70cb280479a12178df0b3a72700e/ml_dtypes-0.6.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:084dfe51a7ad58b171f05115f8226ed4233a454a1611371947e806e76f0c638d", size = 565468, upload-time = "2026-08-13T14:14:08.5Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/22/20fd70ca6ed12446cb92d5b2a7745bd185f9d8b8cdeeadad976574398e6b/ml_dtypes-0.6.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:28d676428b104bb9717b0928bc5c5129f2d6b51b6727587cc4289e7bf8713cb5", size = 360232, upload-time = "2026-08-13T14:14:09.873Z" },
+    { url = "https://files.pythonhosted.org/packages/89/a5/da8ae6c6f1babe4b68e3e55d43d39b529e29774f10e0910671a6b8c86eb8/ml_dtypes-0.6.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:26b1f1fa4f0435a2946859823f6e2bf06796f1e9f10f5a05b08a5e3c8f46ff69", size = 410169, upload-time = "2026-08-13T14:14:11.036Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/55/4561acefa00fa4bcbfb82ca6a48578b41f372cd7dd7cdd6eb4720abc2e5f/ml_dtypes-0.6.0-cp313-cp313-win_amd64.whl", hash = "sha256:fb87f46b4f7ad7b5d3ad8f4b452b024bd4229d44c8ff934798c1fe656210387a", size = 439357, upload-time = "2026-08-13T14:14:12.172Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/5d/6a01538e507ef0ed5e879985b13a92467bf8960696fb1131f8b8cadc60ff/ml_dtypes-0.6.0-cp313-cp313-win_arm64.whl", hash = "sha256:57ed0d6b4ac5e7868361303a9c57fbcf63b768236ee14456f585dfcf260d0292", size = 552278, upload-time = "2026-08-13T14:14:13.539Z" },
 ]
 
 [[package]]
@@ -1822,6 +1860,10 @@ hqq = [
 lmeval = [
     { name = "lm-eval", extra = ["hf"] },
 ]
+mlir = [
+    { name = "ml-dtypes" },
+    { name = "torch-mlir" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1832,6 +1874,7 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.5,<2" },
     { name = "lm-eval", extras = ["hf"], marker = "extra == 'lmeval'", specifier = "==0.4.13" },
     { name = "matplotlib" },
+    { name = "ml-dtypes", marker = "extra == 'mlir'", specifier = ">=0.5" },
     { name = "ninja", marker = "extra == 'dev'" },
     { name = "numpy" },
     { name = "pandas" },
@@ -1850,12 +1893,13 @@ requires-dist = [
     { name = "torch", marker = "extra == 'cpu'", specifier = "==2.14.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ptq-bench", extra = "cpu" } },
     { name = "torch", marker = "extra == 'cu126'", specifier = "==2.14.0", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "ptq-bench", extra = "cu126" } },
     { name = "torch", marker = "extra == 'cu130'", specifier = "==2.14.0", index = "https://download.pytorch.org/whl/cu130", conflict = { package = "ptq-bench", extra = "cu130" } },
+    { name = "torch-mlir", marker = "extra == 'mlir'", specifier = "==20260930.892", index = "https://github.com/llvm/torch-mlir-release/releases/expanded_assets/dev-wheels" },
     { name = "tqdm" },
     { name = "transformers", specifier = "==5.17.0" },
     { name = "wheel", marker = "extra == 'dev'" },
     { name = "zstandard" },
 ]
-provides-extras = ["cpu", "cu126", "cu130", "hqq", "bnb", "lmeval", "dev"]
+provides-extras = ["cpu", "cu126", "cu130", "hqq", "bnb", "lmeval", "mlir", "dev"]
 
 [[package]]
 name = "pyarrow"
@@ -2423,7 +2467,8 @@ name = "torch"
 version = "2.14.0"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
-    "sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and sys_platform == 'darwin'",
 ]
 dependencies = [
     { name = "filelock", marker = "(sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -2444,9 +2489,12 @@ name = "torch"
 version = "2.14.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "cuda-bindings", version = "13.4.2", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -2480,9 +2528,12 @@ name = "torch"
 version = "2.14.0+cpu"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "filelock", marker = "(sys_platform != 'darwin' and extra == 'extra-9-ptq-bench-cpu') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -2511,9 +2562,12 @@ name = "torch"
 version = "2.14.0+cu126"
 source = { registry = "https://download.pytorch.org/whl/cu126" }
 resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "cuda-bindings", version = "12.9.8", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -2546,9 +2600,12 @@ name = "torch"
 version = "2.14.0+cu130"
 source = { registry = "https://download.pytorch.org/whl/cu130" }
 resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform == 'emscripten'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "cuda-bindings", version = "13.4.2", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126') or (extra == 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu130')" },
@@ -2573,6 +2630,19 @@ wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu130/torch-2.14.0%2Bcu130-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:20ec4bb8944a847dee60e6d5536b415670dd5403342f36dbe08a6be5bf582e08", upload-time = "2026-09-02T18:52:41Z" },
     { url = "https://download-r2.pytorch.org/whl/cu130/torch-2.14.0%2Bcu130-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:745010695e0458d6f28accb697b5371b6fd245aa8696530165f972cd126bbd8d", upload-time = "2026-09-02T18:52:56Z" },
     { url = "https://download-r2.pytorch.org/whl/cu130/torch-2.14.0%2Bcu130-cp313-cp313-win_amd64.whl", hash = "sha256:a980c9af25fbe3f5d8cf3880dd66628bcb45ad5aaf82ee380fd04f35d5e2e96b", upload-time = "2026-09-02T18:53:36Z" },
+]
+
+[[package]]
+name = "torch-mlir"
+version = "20260930.892"
+source = { registry = "https://github.com/llvm/torch-mlir-release/releases/expanded_assets/dev-wheels" }
+dependencies = [
+    { name = "numpy" },
+    { name = "packaging" },
+]
+wheels = [
+    { url = "https://github.com/llvm/torch-mlir-release/releases/download/dev-wheels/torch_mlir-20260930.892-cp312-abi3-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://github.com/llvm/torch-mlir-release/releases/download/dev-wheels/torch_mlir-20260930.892-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
 ]
 
 [[package]]

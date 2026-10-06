@@ -34,6 +34,10 @@ cu130 = ["torch==2.14.0"]
 hqq   = ["hqq==0.2.8.post1"]
 bnb   = ["bitsandbytes==0.50.2"]
 lmeval = ["lm_eval[hf]==0.4.13"]
+# `ptq export-mlir`: torch-mlir ships nightly wheels only (no PyPI release); the flat
+# index below is its GitHub release page. Dev wheels are a rolling window -- bump the
+# pin when `uv lock` can no longer find this one. ml_dtypes lets torch-mlir embed bf16.
+mlir  = ["torch-mlir==20260930.892", "ml_dtypes>=0.5"]
 # server = ["gptqmodel==7.5.0", "torchao==0.18.0"]   # M6; gptqmodel needs a matching nvcc
 dev = ["pytest", "pytest-timeout", "ruff", "setuptools>=77,<83", "wheel", "ninja"]
 
@@ -64,6 +68,7 @@ conflicts = [[{ extra = "cpu" }, { extra = "cu126" }, { extra = "cu130" }]]
 # no-build-isolation-package = ["gptqmodel"]   # uncommented at M6
 
 [tool.uv.sources]
+torch-mlir = { index = "torch-mlir-dev" }
 torch = [
   { index = "pytorch-cpu",   extra = "cpu" },
   { index = "pytorch-cu126", extra = "cu126" },
@@ -83,4 +88,10 @@ explicit = true
 [[tool.uv.index]]
 name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "torch-mlir-dev"
+url = "https://github.com/llvm/torch-mlir-release/releases/expanded_assets/dev-wheels"
+format = "flat"
 explicit = true

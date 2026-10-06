@@ -19,6 +19,7 @@ from typing import Any
 import torch
 
 from ..models import families
+from . import fakequant as fq
 
 
 @dataclass
@@ -59,6 +60,7 @@ def apply_hqq(
     group_size: int = -1,
     device: torch.device,
     family: families.Family | None = None,
+    record: fq.Recorder | None = None,
 ) -> HQQReport:
     from importlib import metadata
 
@@ -79,7 +81,7 @@ def apply_hqq(
     cfg = BaseQuantizeConfig(nbits=bits, group_size=gs, axis=1)
 
     errors: list[float] = []
-    for module in targets.values():
+    for name, module in targets.items():
         if gs is not None and module.in_features % gs != 0:
             raise ValueError(f"in_features {module.in_features} is not divisible by group_size {gs}")
         original = module.weight.data
@@ -87,6 +89,8 @@ def apply_hqq(
             module, quant_config=cfg, compute_dtype=compute_dtype, device=str(device), del_orig=False
         )
         dequantized = hqq_layer.dequantize().to(original.dtype).to(original.device)
+        if record is not None:
+            record.add(name, record_from_hqq(hqq_layer, original), reference=original)
         errors.append(
             float((dequantized.float() - original.float()).norm() / original.float().norm().clamp_min(1e-12))
         )
@@ -101,3 +105,38 @@ def apply_hqq(
         mean_relative_error=sum(errors) / len(errors),
         hqq_version=metadata.version("hqq"),
     )
+
+
+def record_from_hqq(hqq_layer: Any, original: torch.Tensor) -> fq.QuantRecord:
+    """The codes, scale and (float) zero-point behind an HQQLinear, unpacked.
+
+    Mirrors `Quantizer.dequantize` step for step: unpack `W_q` in the compute dtype,
+    drop 3-bit packing padding, then `(codes - zero) * scale` reshaped to the weight.
+    hqq's zero-point is the output of its optimizer and is not an integer.
+    """
+    from hqq.core.quantize import Quantizer
+
+    meta = hqq_layer.meta
+    if meta.get("quant_scale") or meta.get("quant_zero"):
+        raise NotImplementedError("hqq meta-quantized scale/zero cannot be recorded")
+    rows, cols = meta["shape"]
+    gs = meta["group_size"] or cols
+    compute_dtype = meta["compute_dtype"]
+    W_q = hqq_layer.W_q
+    if meta["packing"]:
+        if meta["view_as_float"]:
+            W_q = W_q.view(meta["unpack_view_dtype"])
+        codes = Quantizer.unpack[meta["packing"]](W_q, dtype=compute_dtype)
+        if meta["nbits"] == 3:
+            codes = codes[: gs if meta["axis"] == 0 else rows * cols // gs]
+    else:
+        codes = W_q.to(compute_dtype)
+    n_groups = cols // gs
+    rec = fq.QuantRecord(
+        algo="hqq", bits=int(meta["nbits"]), group_size=-1 if meta["group_size"] is None else gs,
+        sym=False, codes=codes.reshape(rows, cols).to(fq.codes_dtype(int(meta["nbits"]))),
+        scale=meta["scale"].reshape(rows, n_groups).clone(),
+        zero=meta["zero"].reshape(rows, n_groups).clone(), compute_dtype=compute_dtype,
+    )
+    fq._fill_errors(rec, original.float())
+    return rec

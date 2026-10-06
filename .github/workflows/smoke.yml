@@ -30,7 +30,7 @@ jobs:
           key: hf-${{ runner.os }}-opt125m-wikitext2-v1
 
       - name: Sync (CPU wheels)
-        run: uv sync --extra cpu --extra dev
+        run: uv sync --extra cpu --extra dev --extra mlir
 
       - name: env-check
         run: uv run --no-sync ptq env-check --no-require-cuda

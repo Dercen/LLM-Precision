@@ -1,4 +1,4 @@
-"""ptq command line. M0 ships `env-check` and a minimal `eval`."""
+"""ptq command line. M0 ships `env-check` and a minimal `eval`; `export-mlir` is the export stage."""
 
 from __future__ import annotations
 
@@ -229,6 +229,54 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     return run_wizard(device_spec=args.device)
 
 
+def cmd_export_mlir(args: argparse.Namespace) -> int:
+    from . import config as C
+    from . import device as D
+    from .export import ExportOptions, export_quantized
+    from .export import mlir as mlir_mod
+    from .export.stage import build_run, resolve_model
+
+    if not args.no_mlir and not mlir_mod.available():
+        print(
+            "torch-mlir is not installed: `uv sync --extra mlir`, or pass --no-mlir for the "
+            "nn.Module and JSON only",
+            file=sys.stderr,
+        )
+        return FAILED_CHECK
+    model = resolve_model(args.model)
+    quant = C.QuantSpec(
+        algo=args.algo, bits=16 if args.algo == "fp" else args.bits, group_size=args.group_size,
+        sym=args.sym, act_order=args.act_order, true_sequential=args.true_sequential,
+        static_groups=args.static_groups, percdamp=args.percdamp,
+    )
+    calib = C.CalibSpec(dataset=args.calib, nsamples=args.nsamples, seqlen=args.calib_seqlen, seed=args.seed)
+    run = build_run(model, quant, calib, dtype=args.dtype)
+    options = ExportOptions(
+        representation=args.repr, seqlen=args.seqlen, dynamic_seqlen=args.dynamic_seqlen,
+        write_mlir=not args.no_mlir, bytecode=args.bytecode, score_windows=args.score_windows,
+        score_dataset=args.score_dataset, score_seqlen=args.score_seqlen, score_seed=args.seed,
+        eval_mode=args.eval_mode, deterministic=args.deterministic,
+    )
+    result = export_quantized(run, args.out, device=D.resolve(args.device), options=options)
+    m = result.manifest
+    tag = run.label().split("/")[1]  # e.g. rtn4g128
+    print(f"exported {m['model']} {tag} -> {result.out_dir}")
+    print(_fmt("quant_key", m["quant_key"]))
+    print(_fmt("quantized modules", m["n_quantized_modules"]))
+    print(_fmt("dequant ops", ", ".join(m["dequant_ops_used"]) or "none"))
+    print(_fmt("mean rel. weight error", m["summary"]["mean_rel_error"]))
+    if m["summary"]["mean_output_rel_error"] is not None:
+        print(_fmt("mean rel. output error", round(m["summary"]["mean_output_rel_error"], 6)))
+    print(_fmt("bitwise = evaluated", m["summary"]["all_bitwise_equal_to_evaluated"]))
+    if result.mlir_path:
+        print(_fmt("mlir", f"{result.mlir_path} ({m['mlir']['mlir_bytes'] / 1024**2:.1f} MB)"))
+    print(_fmt("layers", result.layers_path))
+    print(_fmt("manifest", result.manifest_path))
+    for note in result.notes:
+        print(f"  note: {note}")
+    return OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ptq", description=__doc__)
     parser.add_argument("--device", default="auto", help="auto | cpu | cuda | cuda:N")
@@ -306,6 +354,42 @@ def build_parser() -> argparse.ArgumentParser:
     p_gc.add_argument("--keep-newest", type=int, default=None)
     p_gc.add_argument("--max-gb", type=float, default=None)
     p_cache.set_defaults(func=cmd_cache)
+
+    p_exp = sub.add_parser(
+        "export-mlir",
+        help="quantize a model and write a torch-mlir representation: model.mlir, layers.json, export.json",
+    )
+    p_exp.add_argument("--model", required=True, help="configs/models key, Hugging Face repo id, or a local directory")
+    p_exp.add_argument("--bits", type=int, required=True)
+    p_exp.add_argument("--out", required=True, help="output directory")
+    p_exp.add_argument("--algo", default="rtn", choices=["fp", "rtn", "gptq", "awq_lite", "hqq"])
+    p_exp.add_argument("--group-size", type=int, default=-1, help="-1 for per-row, else 128 / 64")
+    p_exp.add_argument("--sym", action="store_true", help="symmetric quantization")
+    p_exp.add_argument("--act-order", action="store_true", help="GPTQ act-order")
+    p_exp.add_argument("--true-sequential", action="store_true", help="GPTQ true-sequential")
+    p_exp.add_argument("--static-groups", action="store_true", help="GPTQ static groups")
+    p_exp.add_argument("--percdamp", type=float, default=0.01)
+    p_exp.add_argument("--calib", default="c4", help="c4 | wikitext2 | pile_val (gptq, awq_lite)")
+    p_exp.add_argument("--nsamples", type=int, default=128)
+    p_exp.add_argument("--calib-seqlen", type=int, default=2048)
+    p_exp.add_argument("--seed", type=int, default=0)
+    p_exp.add_argument("--dtype", default=None, help="override the family dtype policy")
+    p_exp.add_argument(
+        "--eval-mode", default="auto", choices=["auto", "resident", "streamed"],
+        help="where the quantizer runs, as for `ptq eval`",
+    )
+    p_exp.add_argument(
+        "--repr", default="decomposed", choices=["decomposed", "aten"],
+        help="dequantization ops: quantized_decomposed.* where they fit (default) or explicit ATen",
+    )
+    p_exp.add_argument("--seqlen", type=int, default=128, help="example sequence length for torch.export")
+    p_exp.add_argument("--dynamic-seqlen", action="store_true", help="export with a symbolic sequence length")
+    p_exp.add_argument("--bytecode", action="store_true", help="also write model.mlirbc")
+    p_exp.add_argument("--no-mlir", action="store_true", help="skip the .mlir file (nn.Module round trip and JSON only)")
+    p_exp.add_argument("--score-windows", type=int, default=0, help="windows for per-layer output error (0 = off)")
+    p_exp.add_argument("--score-dataset", default="wikitext2")
+    p_exp.add_argument("--score-seqlen", type=int, default=512)
+    p_exp.set_defaults(func=cmd_export_mlir)
 
     p_wiz = sub.add_parser("wizard", help="interactive: pick model/dataset/method/bits from menus and run")
     p_wiz.set_defaults(func=cmd_wizard)

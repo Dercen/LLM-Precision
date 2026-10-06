@@ -27,6 +27,13 @@ hf_cache/
 *.pth
 *.gguf
 
+# `ptq export-mlir` output. The .mlir text embeds every weight (opt-125m: 480 MB, over
+# GitHub's 100 MB file limit), so only the JSON of the committed example is tracked.
+/exports/*
+!/exports/opt125m-rtn4-g128/
+*.mlir
+*.mlirbc
+
 # Experiment outputs (results/*.jsonl are small and CAN be committed; large dumps are not)
 results/**/*.pt
 results/**/*.safetensors

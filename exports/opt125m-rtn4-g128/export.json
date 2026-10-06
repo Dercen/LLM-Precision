@@ -1,0 +1,95 @@
+{
+  "format_version": 1,
+  "model": "facebook/opt-125m",
+  "model_key": "opt-125m",
+  "loaded_from": "facebook/opt-125m",
+  "model_revision": "27dcfa74d334bc871f3234de431e71c6eeba5dd6",
+  "model_type": "opt",
+  "dtype": "torch.float32",
+  "quant_key": "eb8aeb32c3b2",
+  "quant": {
+    "algo": "rtn",
+    "bits": 4,
+    "group_size": 128,
+    "sym": false,
+    "act_order": false,
+    "true_sequential": false,
+    "static_groups": false,
+    "percdamp": 0.01,
+    "blocksize": 128,
+    "awq_grid": 20,
+    "awq_clip": true
+  },
+  "algo": "rtn",
+  "bits": 4,
+  "group_size": 128,
+  "sym": false,
+  "n_quantized_modules": 72,
+  "quant_seconds": 0.383,
+  "mean_relative_error": 0.109411,
+  "calib": null,
+  "calib_fingerprint": null,
+  "representation": "decomposed",
+  "dequant_ops_used": [
+    "quantized_decomposed.dequantize_per_channel_group"
+  ],
+  "schemes_used": [
+    "per_group"
+  ],
+  "files": {
+    "layers": "layers.json",
+    "mlir": "model.mlir",
+    "mlir_bytecode": null
+  },
+  "mlir": {
+    "example_seqlen": 128,
+    "literals": 341,
+    "distinct_literal_bytes": 251461632,
+    "dynamic_seqlen": false,
+    "torch_mlir_version": "20260930.892",
+    "ops": {
+      "torch.aten.mm": 73,
+      "torch.quantized_decomposed.dequantize_per_channel_group": 72
+    },
+    "mlir_bytes": 503348657
+  },
+  "summary": {
+    "mean_rel_error": 0.10941123113863999,
+    "max_rel_error": 0.13113842904567719,
+    "mean_output_rel_error": 0.09072096531130408,
+    "all_bitwise_equal_to_evaluated": true
+  },
+  "perplexity_rows": [],
+  "export_seconds": 12.864,
+  "notes": [],
+  "tf32": false,
+  "deterministic": false,
+  "float32_matmul_precision": "highest",
+  "fp16_reduced_precision_reduction": false,
+  "fp32_precision_knobs": {
+    "global": "ieee",
+    "cuda.matmul": "ieee",
+    "cudnn.conv": "ieee",
+    "cudnn.rnn": "ieee"
+  },
+  "git_sha": "883ce0879598b15d9ebcabcd739676a9e10de822-dirty",
+  "versions": {
+    "torch": "2.14.0+cu130",
+    "transformers": "5.17.0",
+    "tokenizers": "0.23.2",
+    "datasets": "5.0.1",
+    "accelerate": "1.15.0",
+    "safetensors": "0.8.0",
+    "huggingface-hub": "1.32.0",
+    "numpy": "2.5.3",
+    "sentencepiece": "0.2.2",
+    "hqq": "0.2.8.post1"
+  },
+  "hostname": "zachlaptop",
+  "platform": "Linux-7.2.7-200.fc44.x86_64-x86_64-with-glibc2.43",
+  "python": "3.12.14",
+  "machine": "x86_64",
+  "processor": "x86_64",
+  "cpu_count": 24,
+  "generated_at": "2026-10-06T15:23:18+00:00"
+}

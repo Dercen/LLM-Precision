@@ -289,6 +289,7 @@ def apply_awq_lite(
     family: families.Family | None = None,
     cache_device: str = "auto",
     offload: bool | None = None,
+    record: fq.Recorder | None = None,
 ) -> AWQReport:
     fam = family or families.for_model(model)
     started = time.perf_counter()
@@ -372,7 +373,11 @@ def apply_awq_lite(
         eval_mode = streamer.eval_mode
 
     # 5. Quantize everything with the reference grid.
-    rep = rtn_mod.apply_rtn(model, bits=spec.bits, group_size=spec.group_size, sym=spec.sym, family=fam)
+    rep = rtn_mod.apply_rtn(
+        model, bits=spec.bits, group_size=spec.group_size, sym=spec.sym, family=fam, record=record
+    )
+    if record is not None:
+        record.relabel("awq_lite")
 
     return AWQReport(
         spec=spec,

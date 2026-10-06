@@ -114,8 +114,14 @@ class GPTQ:
         self.H += x.matmul(x.t())
 
     @torch.no_grad()
-    def quantize(self, spec: GPTQSpec) -> float:
-        """Quantize the layer's weight in place; return the summed OBS loss."""
+    def quantize(
+        self, spec: GPTQSpec, *, record: fq.Recorder | None = None, name: str = ""
+    ) -> float:
+        """Quantize the layer's weight in place; return the summed OBS loss.
+
+        `record` (export stage only) files the grids this layer was rounded on under
+        `name`; the weight written is the same either way.
+        """
         if self.H is None:
             raise RuntimeError("quantize called twice")
         weight = self.layer.weight
@@ -131,8 +137,10 @@ class GPTQ:
         maxq = 2**bits - 1
 
         grid: fq.QuantGrid | None = None
+        grids: list[fq.QuantGrid] = []  # every grid used, in the order it was found
         if gs == -1:
             grid = fq.find_params(W, bits=bits, sym=sym, group_size=-1)
+            grids.append(grid)
 
         static: list[fq.QuantGrid] | None = None
         if spec.static_groups:
@@ -142,6 +150,7 @@ class GPTQ:
                 fq.find_params(W[:, i : i + gs], bits=bits, sym=sym, group_size=-1)
                 for i in range(0, self.columns, gs)
             ]
+            grids = static
 
         perm = invperm = None
         if spec.act_order:
@@ -182,6 +191,7 @@ class GPTQ:
                             grid = fq.find_params(
                                 W[:, (i1 + i) : (i1 + i + gs)], bits=bits, sym=sym, group_size=-1
                             )
+                            grids.append(grid)
                     else:
                         idx = i1 + i
                         if perm is not None:
@@ -204,8 +214,49 @@ class GPTQ:
         if invperm is not None:
             Q = Q[:, invperm]
 
+        if record is not None:
+            record.add(name, self._record(spec, Q, grids, perm, weight.data), reference=weight.data)
         weight.data.copy_(Q.to(weight.dtype))
         return float(losses.sum().item())
+
+    def _record(
+        self,
+        spec: GPTQSpec,
+        Q: torch.Tensor,
+        grids: list[fq.QuantGrid],
+        perm: torch.Tensor | None,
+        original: torch.Tensor,
+    ) -> fq.QuantRecord:
+        """The codes and grids behind Q (fp32, original column order).
+
+        Grouped, non-static GPTQ finds group k on quantization-order columns
+        [k*gs, (k+1)*gs); under act_order those are scattered original columns, so the
+        record carries a per-column group index instead of contiguous blocks. Static
+        groups are original column blocks whatever the order.
+        """
+        gs = spec.group_size
+        cols = self.columns
+        scale = torch.cat([g.scale for g in grids], dim=1)
+        zero = torch.cat([g.zero for g in grids], dim=1)
+        g_idx: torch.Tensor | None = None
+        if gs != -1:
+            blocks = torch.arange(cols, device=Q.device) // gs
+            g_idx = blocks
+            if perm is not None and not spec.static_groups:
+                g_idx = torch.empty_like(blocks)
+                g_idx[perm] = blocks  # original column perm[j] was quantized j-th
+            if cols % gs == 0 and torch.equal(g_idx, blocks):
+                g_idx = None
+        s_c, z_c = fq.expand_params(scale, zero, cols, g_idx)
+        codes = fq._codes(Q, s_c, z_c, 2**spec.bits - 1).to(fq.codes_dtype(spec.bits))
+        rec = fq.QuantRecord(
+            algo="gptq", bits=spec.bits, group_size=gs, sym=spec.sym,
+            codes=codes, scale=scale, zero=zero, g_idx=g_idx,
+        )
+        if not torch.equal(rec.dequantize(), Q):
+            raise RuntimeError("GPTQ record does not reproduce the quantized weight")
+        fq._fill_errors(rec, original.float())
+        return rec
 
     def free(self) -> None:
         self.H = None
@@ -233,8 +284,12 @@ def apply_gptq(
     cache_device: str = "auto",
     offload: bool | None = None,
     progress: bool = True,
+    record: fq.Recorder | None = None,
 ) -> GPTQReport:
-    """The sequential driver: quantize block by block, feeding each the last's outputs."""
+    """The sequential driver: quantize block by block, feeding each the last's outputs.
+
+    `record` (export stage only) files every module's grids under its qualified name.
+    """
     fam = family or families.for_model(model)
     started = time.perf_counter()
     D.reset_peak_memory(device)
@@ -266,7 +321,7 @@ def apply_gptq(
             except ImportError:
                 pass
 
-        for _, block in block_iter:
+        for bi, block in block_iter:
             targets = families.block_targets(block, fam)
             if spec.true_sequential:
                 groups = [
@@ -294,7 +349,9 @@ def apply_gptq(
                     for h in handles:
                         h.remove()
                 for name in group:
-                    block_loss += workers[name].quantize(spec)
+                    block_loss += workers[name].quantize(
+                        spec, record=record, name=f"{fam.blocks_path}.{bi}.{name}"
+                    )
                     workers[name].free()
                     n_modules += 1
                 del workers

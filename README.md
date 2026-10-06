@@ -137,6 +137,74 @@ uv run ptq                                               # the wizard
   merge by plain git or rsync and `uv run ptq aggregate` dedupes them by `run_id`.
 - Cluster specifics (SLURM script, `--shard k/n` across GPUs, offline flags): `docs/SERVER.md`.
 
+## Exporting a quantized model to torch-mlir
+
+Step-by-step guide: [docs/EXPORT-MLIR.md](docs/EXPORT-MLIR.md).
+
+`ptq export-mlir` takes a model and a bit-width config, runs the pipeline's own quantizer
+once more while recording the grid it rounds on, and writes three things: a
+`torch.nn.Module` whose target Linears hold **integer codes plus scale/zero-point** with the
+dequantization performed in `forward` (not folded into a float weight), the same model as
+**torch-dialect MLIR** via `torch_mlir.fx.export_and_import`, and the per-layer accuracy as
+JSON keyed by module name. The dequantized weights are bitwise the ones the perplexity rows
+were measured with; `layers.json` records that check per module.
+
+```bash
+uv sync --extra cu130 --extra hqq --extra dev --extra mlir     # + the torch-mlir dev wheel and ml_dtypes
+uv run ptq export-mlir --model opt-125m --bits 4 --group-size 128 --out exports/opt125m-rtn4-g128
+uv run ptq export-mlir --model opt-125m --bits 4 --algo gptq --act-order --calib c4 \
+    --score-windows 4 --out exports/opt125m-gptq4-ao             # per-layer output error on 4 windows
+uv run ptq export-mlir --model facebook/opt-125m --bits 3 --algo hqq --no-mlir --out exports/x   # Module + JSON only
+```
+
+`--model` is a `configs/models` key, a Hugging Face id or a local directory; `--algo` is
+`rtn` (default), `gptq`, `awq_lite` or `hqq` with the same options as `ptq eval`. Output:
+
+| file | contents |
+|---|---|
+| `model.mlir` | raw torch dialect, `func.func @main(%input_ids)`, weights embedded as dense resources (`--bytecode` adds `model.mlirbc`; `--dynamic-seqlen` makes the sequence length symbolic) |
+| `layers.json` | per quantized module: bits, group size, scheme, dequant op, storage dtype, `quant_min/max`, relative and max weight error, SNR, scale/zero ranges, codes used, `roundtrip_max_abs_diff` / `bitwise_equal_to_evaluated`, and with `--score-windows N` the relative output error `‖Q(W)x − Wx‖/‖Wx‖` on N windows |
+| `export.json` | the run's `quant_key`, quant and calibration fields, op counts, versions, provenance, and any `results/raw/runs` perplexity rows with the same `quant_key` |
+
+From Python: `ptqbench.export.export_quantized(run, out_dir, device=..., options=ExportOptions(...))`
+returns the module (`result.model`) and the records. `uv run torch-mlir-opt` is not shipped;
+a consumer continues with `torch-match-quantized-custom-ops` and
+`torchdynamo-export-to-torch-backend-pipeline`, which the test runs through to linalg.
+
+**What maps onto torch-mlir's quantized-op support, and what does not** (torch-mlir
+20260930.892, torch 2.14):
+
+- Per-row grids (`group_size=-1`) are per-output-channel affine quantization with an
+  integer zero-point: `quantized_decomposed.dequantize_per_channel(axis=0)`, which torch-mlir
+  imports as a first-class torch-dialect op and lowers to linalg (`extui/subi/sitofp/mulf`).
+- Grouped grids (g128, g64) have a `(rows, n_groups)` scale that ATen's quantized tensor
+  types cannot hold; `quantized_decomposed.dequantize_per_channel_group` can, and torch-mlir
+  imports and lowers it. This is the default for every RTN, AWQ-lite and non-act-order GPTQ row.
+- 2–7-bit codes have no PyTorch dtype. They sit in a `uint8` container with
+  `quant_min=0, quant_max=2^bits−1` on the op (the PT2E/ExecuTorch convention). That is exact
+  for the values; only the type system sees 8 bits.
+- **GPTQ `act_order` + group size** assigns scattered columns to each group (the Llama configs
+  default to `act_order: true`). No `quantized_decomposed` op takes a per-column group index,
+  so those layers are written as explicit ATen ops (`index_select` of scale/zero, `sub`, `mul`)
+  with a `g_idx` buffer. torch-mlir lowers them, but as plain arithmetic, not as quantization.
+  `--static-groups` keeps groups contiguous and the decomposed op. `--repr aten` writes every
+  layer this way.
+- **HQQ** zero-points are floats (its optimizer's output), so hqq layers also take the explicit
+  ATen form; `zero_point_domain: "float"` in `layers.json`.
+- **Activations are never quantized** by this benchmark, so every export is
+  dequantize-then-float-matmul. torch-mlir's `FuseQuantizedOps` integer matmul needs both operands
+  quantized and does not fire. The pre-rounding fp weight is the error reference for every layer
+  (for AWQ-lite that is the scaled, clipped weight, noted as `error_reference`).
+
+Practicalities: the `.mlir` text holds every weight as hex (opt-125m: 480 MB and 14 s on the
+CPU, where the model is fp32; about 0.3 GB on the GPU at fp16), so `/exports/`, `*.mlir` and
+`*.mlirbc` are git-ignored. Host RAM needs the model, the codes, and with `--score-windows`
+another 1.5× the target weights (skipped with a note if that would not fit). An export on the
+CPU has `dtype=torch.float32`, a different `quant_key` from the GPU fp16 rows, so
+`perplexity_rows` only joins when the export runs on the same device class as the benchmark.
+torch-mlir has no PyPI release: the `mlir` extra pins one dev wheel from its GitHub release
+page (see `pyproject.toml`), and bf16 models need the `ml_dtypes` package it adds.
+
 ## Adding a model
 
 Models are one small YAML file each in `configs/models/`. Copy an existing one and edit it:

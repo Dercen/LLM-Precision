@@ -47,19 +47,31 @@ def apply_rtn(
     group_size: int = -1,
     sym: bool = False,
     family: families.Family | None = None,
+    record: fakequant.Recorder | None = None,
 ) -> QuantReport:
-    """Fake-quantize every target Linear in place and report the error."""
+    """Fake-quantize every target Linear in place and report the error.
+
+    `record` (export stage only) files the grid and integer codes of every module; the
+    weights written are the same either way.
+    """
     started = time.perf_counter()
     targets = families.target_modules(model, family)
     if not targets:
         raise RuntimeError("no target Linear modules found; check the family map")
 
     errors: list[float] = []
-    for module in targets.values():
+    for name, module in targets.items():
         original = module.weight.data
-        quantized = fakequant.quantize_weight(
-            original, bits=bits, sym=sym, group_size=group_size
-        )
+        if record is None:
+            quantized = fakequant.quantize_weight(
+                original, bits=bits, sym=sym, group_size=group_size
+            )
+        else:  # the same computation, with the grid kept for the record
+            grid = fakequant.find_params(original, bits=bits, sym=sym, group_size=group_size)
+            quantized = fakequant.quantize_weight(
+                original, bits=bits, sym=sym, group_size=group_size, grid=grid
+            )
+            record.add_grid(name, original, grid, algo="rtn")
         errors.append(fakequant.quantization_error(original, quantized))
         module.weight.data.copy_(quantized)
 
