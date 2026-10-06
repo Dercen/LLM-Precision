@@ -41,6 +41,13 @@ DATASETS = ["wikitext2", "c4_new", "ptb_new"]
 GS_STYLE = {128: "-", -1: "--", 64: ":"}
 GS_LABEL = {128: "g128", -1: "per-row", 64: "g64"}
 ALGO_LABEL = {"rtn": "RTN", "gptq": "GPTQ", "awq_lite": "AWQ-lite", "hqq": "HQQ"}
+DATASET_TITLE = {"wikitext2": "WikiText-2 (Wikipedia)", "c4_new": "C4 (web pages)", "ptb_new": "PTB (news)"}
+BAND = "#e8efe6"  # within 5% of fp16: the loss that is hard to notice in use
+CAPTION_PPL = ("Lower is better. The grey line is the unmodified 16-bit model (fp16) and the shaded band is "
+               "within 5% of it, a loss that is hard to notice in use. Hollow circles are numbers published in papers. "
+               "Rows: how many weights share one scale factor (g128 = groups of 128; per-row = a whole row).")
+CAPTION_DELTA = ("Each cell is how much perplexity rose above the unmodified 16-bit model: 0 means no loss, darker is "
+                 "worse. Rows are method and grouping (g128 = groups of 128).")
 
 
 def _style() -> None:
@@ -105,6 +112,7 @@ def plot_perplexity(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
             ax.set_yscale("log")
             ax.grid(axis="x", visible=False)
             if not fp.empty:
+                ax.axhspan(fp.iloc[0], fp.iloc[0] * 1.05, color=BAND, zorder=0, linewidth=0)
                 ax.axhline(fp.iloc[0], color=CHROME["axis"], linewidth=1.2, zorder=1)
                 ax.annotate(f"fp16 {fp.iloc[0]:.2f}", xy=(-0.35, fp.iloc[0]), xytext=(0, 3),
                             textcoords="offset points", ha="left", va="bottom", fontsize=8, color=INK["secondary"])
@@ -134,20 +142,24 @@ def plot_perplexity(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
                 ax.annotate(text, xy=(x, y), xytext=(8, 0), textcoords="offset points",
                             va="center", fontsize=8.5, color=INK["secondary"])
             if ri == 0:
-                ax.set_title(dataset, loc="left")
+                ax.set_title(DATASET_TITLE.get(dataset, dataset), loc="left")
             ax.set_xlim(-0.4, len(BITS) - 0.4)
             ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _fmt_ppl(v)))
             ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
             if ci == 0:
-                ax.set_ylabel(f"{GS_LABEL[gs]}\nperplexity (log)")
+                ax.set_ylabel(f"{GS_LABEL[gs]}\nperplexity (log), lower is better")
     legend_items = [handles[a] for a in SERIES if a in handles]
     legend_labels = [ALGO_LABEL[a] for a in SERIES if a in handles]
     legend_items.append(Line2D([], [], marker="o", linestyle="none", markersize=8, markerfacecolor=CHROME["surface"],
                                markeredgecolor=INK["muted"], markeredgewidth=1.6))
     legend_labels.append("published")
-    fig.legend(legend_items, legend_labels, loc="lower center", ncol=len(legend_items), bbox_to_anchor=(0.5, -0.01))
+    legend_items.append(plt.Rectangle((0, 0), 1, 1, facecolor=BAND, edgecolor="none"))
+    legend_labels.append("within 5% of fp16")
+    fig.legend(legend_items, legend_labels, loc="lower center", ncol=len(legend_items), bbox_to_anchor=(0.5, 0.035))
     fig.suptitle(f"{model} — perplexity by weight precision", x=0.01, ha="left", fontsize=12, color=INK["primary"])
-    fig.tight_layout(rect=(0, 0.05, 1, 0.96))
+    fig.text(0.01, 0.006, CAPTION_PPL, ha="left", va="bottom", fontsize=8.2, color=INK["secondary"],
+             wrap=True, transform=fig.transFigure)
+    fig.tight_layout(rect=(0, 0.09, 1, 0.96))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
     plt.close(fig)
@@ -161,7 +173,7 @@ def plot_delta_heatmap(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
     datasets = [d for d in DATASETS if d in set(sub["dataset"])]
     rows = sorted({(a, g) for a, g in zip(sub["algo"], sub["group_size"], strict=True)},
                   key=lambda t: (list(SERIES).index(t[0]) if t[0] in SERIES else 9, -t[1]))
-    fig, axes = plt.subplots(1, len(datasets), figsize=(3.6 * len(datasets) + 0.8, 0.42 * len(rows) + 1.6), squeeze=False)
+    fig, axes = plt.subplots(1, len(datasets), figsize=(3.6 * len(datasets) + 0.8, 0.42 * len(rows) + 2.1), squeeze=False)
     vmax = math.log10(1 + max(1.0, float(sub["delta_vs_fp16"].max())))
     for ax, dataset in zip(axes[0], datasets, strict=True):
         d = sub[sub["dataset"] == dataset]
@@ -187,9 +199,10 @@ def plot_delta_heatmap(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
         ax.set_xticklabels([f"{b}-bit" for b in BITS])
         ax.set_yticks([i + 0.5 for i in range(len(rows))])
         ax.set_yticklabels([f"{ALGO_LABEL.get(a, a)} {GS_LABEL.get(g, g)}" for a, g in rows] if ax is axes[0][0] else [])
-        ax.set_title(dataset, loc="left")
-    fig.suptitle(f"{model} — perplexity increase over fp16 (log colour scale)", x=0.01, ha="left", fontsize=12)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+        ax.set_title(DATASET_TITLE.get(dataset, dataset), loc="left")
+    fig.suptitle(f"{model} — how much worse than the unmodified model (log colour scale)", x=0.01, ha="left", fontsize=12)
+    fig.text(0.01, 0.01, CAPTION_DELTA, ha="left", va="bottom", fontsize=8.2, color=INK["secondary"], wrap=True)
+    fig.tight_layout(rect=(0, 0.1, 1, 0.94))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
     plt.close(fig)

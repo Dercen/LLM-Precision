@@ -229,6 +229,26 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     return run_wizard(device_spec=args.device)
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    from . import doctor
+
+    return doctor.print_report(doctor.run_checks(probe_internet=not args.offline))
+
+
+def cmd_site(args: argparse.Namespace) -> int:
+    from . import site
+
+    pages = site.build(args.out)
+    print(f"{len(pages)} pages -> {pages[0].parent}  (open {pages[0]} in a browser)")
+    return OK
+
+
+def cmd_ui(args: argparse.Namespace) -> int:
+    from .ui import serve
+
+    return serve(host=args.host, port=args.port, device_spec=args.device, open_browser=not args.no_browser)
+
+
 def cmd_export_mlir(args: argparse.Namespace) -> int:
     from . import config as C
     from . import device as D
@@ -296,6 +316,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="do not fail when CUDA is unavailable (CI uses this)",
     )
     p_env.set_defaults(func=cmd_env_check, require_cuda=True)
+
+    p_doc = sub.add_parser("doctor", help="is this machine ready? a plain-language checklist with fixes")
+    p_doc.add_argument("--offline", action="store_true", help="skip the internet check")
+    p_doc.set_defaults(func=cmd_doctor)
+
+    p_site = sub.add_parser("site", help="results/ and the guides as a static website (site/)")
+    p_site.add_argument("--out", default=None, help="output directory (default: site/)")
+    p_site.set_defaults(func=cmd_site)
+
+    p_ui = sub.add_parser("ui", help="the wizard in your browser, on this machine")
+    p_ui.add_argument("--host", default="127.0.0.1")
+    p_ui.add_argument("--port", type=int, default=8765)
+    p_ui.add_argument("--no-browser", action="store_true", help="do not open a browser tab")
+    p_ui.set_defaults(func=cmd_ui)
 
     p_eval = sub.add_parser("eval", help="evaluate perplexity for one model/dataset pair")
     p_eval.add_argument("--model", required=True)

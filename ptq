@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Run ptq without remembering `source scripts/env.sh` or `uv run`:
+#   ./ptq              the menu
+#   ./ptq doctor       the setup checks
+#   ./ptq eval ...     any other command
+set -euo pipefail
+cd "$(dirname "$0")"
+if [ ! -x .venv/bin/python ]; then
+  echo "ptq-bench is not set up yet: run ./install.sh first" >&2
+  exit 1
+fi
+# shellcheck disable=SC1091
+source scripts/env.sh
+exec uv run --no-sync ptq "$@"

@@ -34,7 +34,8 @@ Each step is explained below, with where it happens in the code.
 
 You tell the program what to measure, in one of three ways:
 
-- **`uv run ptq`** opens a menu (the "wizard"): pick a model, dataset, method and bit width.
+- **`./ptq`** opens a menu (the "wizard"): a two-minute demo, or pick a model, text, method
+  and bit width yourself. `./ptq doctor` checks the machine first.
 - **`uv run ptq eval --model facebook/opt-125m --algo gptq --bits 4`** measures one thing.
 - **`uv run ptq run configs/experiments/resident_full.yaml`** measures a whole grid. The
   YAML file lists models, methods and bit widths, and the program runs every combination.

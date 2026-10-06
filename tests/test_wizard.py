@@ -46,4 +46,30 @@ def test_execute_answers_end_to_end_on_cpu():
 
 def test_summary_reads_well():
     text = W._summary(W.Answers(model_key="opt-125m", datasets=["wikitext2", "c4_new"], algo="gptq", bits=4, group_size=128))
-    assert text == "opt-125m: gptq 4-bit g128, calibration c4 on wikitext2, c4_new"
+    assert text == ("opt-125m: GPTQ, 4 bits, groups of 128, calibration text c4; "
+                    "tested on WikiText-2 (Wikipedia articles), C4 (web pages)")
+    fp = W._summary(W.Answers(model_key="opt-125m", datasets=["wikitext2"], algo="fp", quick=True))
+    assert fp == "opt-125m: full precision (no quantization); tested on WikiText-2 (Wikipedia articles), quick preview"
+
+
+def test_recommended_group_size_respects_model_shape():
+    assert W.recommended_group_size("opt-125m") == 128
+    assert W.recommended_group_size("smollm2-135m") == 64, "128 does not divide SmolLM2's hidden size"
+
+
+def test_demo_is_baseline_then_four_bit_quick_previews():
+    demo = W.demo_answers()
+    assert [a.algo for a in demo] == ["fp", "rtn"] and all(a.quick for a in demo)
+    assert demo[1].bits == 4 and demo[1].group_size == 128 and demo[1].datasets == ["wikitext2"]
+    runs = W.build_runs(demo[1])
+    assert runs[0].eval.max_windows == 20
+
+
+def test_estimate_reads_like_a_sentence():
+    assert W._minutes(30) == "under a minute"
+    assert W._minutes(170) == "about 3 minutes"
+    assert W._minutes(5 * 3600) == "about 5.0 hours"
+    text = W.estimate(W.demo_answers()[1], "cpu")
+    assert text.startswith(("under a minute", "about "))
+    big = W.estimate(W.Answers(model_key="opt-6.7b", datasets=["wikitext2"], algo="gptq", bits=4, group_size=128), "cpu")
+    assert "about" in big and ("hour" in big or "minute" in big)

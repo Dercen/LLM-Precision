@@ -76,14 +76,27 @@ def plan(exp_path: str | Path, *, filter_text: str | None = None, shard: str | N
     return groups
 
 
-def estimate_seconds(groups: list[tuple[str, list[C.RunSpec]]], hostname: str | None = None) -> tuple[float, list[str]]:
-    """From results/raw/timing.json; returns (seconds, notes about missing entries)."""
+def estimate_seconds(
+    groups: list[tuple[str, list[C.RunSpec]]], hostname: str | None = None, *, include_done: bool = False
+) -> tuple[float, list[str]]:
+    """From results/raw/timing.json; returns (seconds, notes about missing entries).
+
+    A host with no timing of its own borrows another host's (the wizard's estimate on a
+    renamed or new laptop); `include_done` counts rows that already have a result, which
+    the wizard re-runs and the matrix skips.
+    """
     import socket
 
     host = hostname or socket.gethostname()
     notes: list[str] = []
     try:
-        timing = json.loads(paths.timing_file().read_text(encoding="utf-8")).get(host, {})
+        all_timing = json.loads(paths.timing_file().read_text(encoding="utf-8"))
+        timing = all_timing.get(host, {})
+        if not timing:
+            others = [h for h in all_timing if not h.startswith("_")]
+            if others:
+                timing = all_timing[others[0]]
+                notes.append(f"no timing for host {host}; using {others[0]}'s")
     except (OSError, json.JSONDecodeError):
         timing, notes = {}, ["no results/raw/timing.json for this host"]
     entries = timing.get("entries", {})
@@ -96,6 +109,11 @@ def estimate_seconds(groups: list[tuple[str, list[C.RunSpec]]], hostname: str | 
             key = f"{run.model.repo}|{run.dtype}|{mode}"
             if key in entries:
                 return float(entries[key]["seconds_per_window"])
+        # Same model at another dtype (a CPU run is fp32; the timing data is fp16): close enough.
+        for mode in ("resident", "streamed"):
+            for key, entry in entries.items():
+                if key.startswith(f"{run.model.repo}|") and key.endswith(f"|{mode}"):
+                    return float(entry["seconds_per_window"])
         notes.append(f"no eval timing for {run.model.key}; using 0.5 s/window")
         return 0.5
 
@@ -113,7 +131,7 @@ def estimate_seconds(groups: list[tuple[str, list[C.RunSpec]]], hostname: str | 
 
     total = 0.0
     for _, runs in groups:
-        pending = [r for r in runs if not X.is_done(r)]
+        pending = list(runs) if include_done else [r for r in runs if not X.is_done(r)]
         if not pending:
             continue
         total += qsec(pending[0]) + 15.0  # load + overhead
