@@ -3,8 +3,9 @@
 What the code does and why, for anyone reading results or extending the benchmark.
 The measurement protocol, algorithm definitions, dataset recipes, hardware budget and
 reference numbers live here; findings live in [RESULTS.md](RESULTS.md), the server
-hand-off in [SERVER.md](SERVER.md). The original plans are archived alongside
-(`PLAN-v1-windows-cpu-2026-09-20.md`, `PLAN-v2-laptop-2026-09-21.md`).
+hand-off in [SERVER.md](SERVER.md). The original plans and fact checks are archived in
+[archive/](archive/) (`PLAN-v1-windows-cpu-2026-09-20.md`, `PLAN-v2-laptop-2026-09-21.md`,
+`verified-facts-2026-09-20.md`); they are history, not maintained.
 
 Section numbers are kept from the plan so commit messages and test docstrings that
 cite "PLAN.md 5a" still resolve: 2 hardware, 5 protocol, 6 algorithms, 7 datasets,

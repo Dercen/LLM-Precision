@@ -1,17 +1,119 @@
-
-
 # ptq-bench
 
-Post-training-quantization perplexity benchmark for LLMs: how much does perplexity
-degrade as weights are stored at fewer bits, and how much of that loss does each
-quantization algorithm recover?
+Post-training-quantization perplexity benchmark for LLMs: how much worse does a language
+model get when its weights are stored at fewer bits, and how much of that loss does each
+quantization method win back?
 
-New here? Read [HOW-IT-WORKS.md](HOW-IT-WORKS.md) first. Method and protocol: [docs/DESIGN.md](docs/DESIGN.md). Findings with numbers: [docs/RESULTS.md](docs/RESULTS.md).
-Running on a cluster: [docs/SERVER.md](docs/SERVER.md). The original plans are archived under `docs/`.
+## Start here
 
-## Status
+| I want to… | Go to |
+|---|---|
+| **Read the results** (nothing to install) | The website: [dercen.github.io/LLM-Precision](https://dercen.github.io/LLM-Precision/), rebuilt from this repository after every push. The same pages are in [results/by-model/](results/by-model/README.md), and [results/README.md](results/README.md) explains the words. |
+| **Measure one model myself** | [Quick start](#quick-start-new-machine) below: `./install.sh`, then `./ptq` opens a menu with a two-minute demo, or `./ptq ui` opens the same thing in your browser. No GPU? [Run it on Google Colab](https://colab.research.google.com/github/Dercen/LLM-Precision/blob/main/notebooks/ptq_colab.ipynb). |
+| **Understand how it works** | [HOW-IT-WORKS.md](HOW-IT-WORKS.md): the whole pipeline in plain language, step by step. |
+| **Run or extend the experiments** | [Running the matrix](#running-the-matrix), [Adding a model](#adding-a-model), and [docs/DESIGN.md](docs/DESIGN.md) for the protocol. |
 
-Milestones M0–M6 of the plan are complete (environment, first number, RTN, GPTQ, the
+Every document in the project, and who it is for:
+
+| file | for | what it holds |
+|---|---|---|
+| [README.md](README.md) | everyone | setup, the menu, running experiments, adding models and datasets |
+| [HOW-IT-WORKS.md](HOW-IT-WORKS.md) | newcomers | what happens between "run" and a number, in plain language |
+| [results/README.md](results/README.md) | readers | the words in the tables and how to read a result |
+| [results/by-model/](results/by-model/README.md) | readers | one page per model: best setting per bit width, every number, charts |
+| [docs/RESULTS.md](docs/RESULTS.md) | researchers | findings with numbers, and the open items |
+| [docs/DESIGN.md](docs/DESIGN.md) | researchers, developers | the measurement protocol, algorithms, datasets, reference numbers |
+| [docs/EXPORT-MLIR.md](docs/EXPORT-MLIR.md) | compiler users | step by step: a quantized model as torch-mlir MLIR |
+| [docs/SERVER.md](docs/SERVER.md) | cluster users | SLURM script, sharding, offline flags |
+| [docs/USABILITY-TEST.md](docs/USABILITY-TEST.md) | maintainers | how to watch a newcomer use this and what to fix first |
+| [notebooks/ptq_colab.ipynb](notebooks/ptq_colab.ipynb) | people without a GPU | the two-minute demo on a free Colab GPU |
+| [docs/archive/](docs/archive/) | history | the original plans and fact checks; not maintained |
+
+## Quick start (new machine)
+
+Linux (or WSL on Windows) with an NVIDIA GPU is the normal setup; without a GPU the two
+smallest models still run, slowly. One command does the whole setup:
+
+```bash
+git clone https://github.com/Dercen/LLM-Precision.git
+cd LLM-Precision
+./install.sh          # installs uv, picks the torch build for your NVIDIA driver, ~3 GB once
+./ptq                 # the menu
+```
+
+`install.sh` ends with `./ptq doctor`, a checklist in plain words: GPU, disk, memory,
+internet, what is already downloaded, with a fix for every red line. Run it again any time.
+`./ptq` is the launcher: it sets up the environment and runs the program, so there is nothing
+to `source` and no `uv run` to remember. `./ptq eval ...`, `./ptq run ...` and every other
+command work the same way.
+
+By hand, if you prefer:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh          # uv: Python + environment manager
+export PATH="$HOME/.local/bin:$PATH"
+source scripts/env.sh                                    # cache paths under ~/ml (or $SCRATCH), hqq's build flag
+uv sync --extra cu130 --extra hqq --extra dev            # driver older than R580: --extra cu126; no GPU: --extra cpu
+uv run ptq env-check                                     # the exact, provenance-grade report (CI runs this)
+uv run pytest -q -m "smoke and not gpu"                  # ~1 min; downloads opt-125m and wikitext2
+```
+
+- `source scripts/env.sh` is needed in **every new shell** that calls `uv run ptq` directly
+  (`./ptq` does it for you). `DISABLE_CUDA=1` inside it is **hqq's build flag**, not a torch
+  flag; `ptq env-check` asserts CUDA is live so that can never regress unnoticed.
+- Nothing assumes this laptop: resident vs streamed, cache placement and time estimates
+  are decided from the machine at run time, so a bigger or smaller GPU just moves where
+  models stream.
+- Models and datasets download on first use into `~/ml/hf` (`$SCRATCH/hf` on a cluster).
+  `uv run ptq prefetch configs/experiments/<name>.yaml` fetches everything an experiment
+  needs up front; do that before a queued or offline job.
+- Result rows are one JSON file each under `results/raw/runs/`, so rows from several machines
+  merge by plain git or rsync and `uv run ptq aggregate` dedupes them by `run_id`.
+- Cluster specifics (SLURM script, `--shard k/n` across GPUs, offline flags): `docs/SERVER.md`.
+
+## Easiest way in: the wizard
+
+```bash
+./ptq                 # or: uv run ptq wizard
+```
+
+The first question offers "Show me something in two minutes": opt-125m unmodified, then at
+4 bits with plain rounding, both as quick previews, so the second number can be read against
+the first. Before anything runs you see the plan and an estimated time, from the project's
+own timing data, and what will be downloaded. Otherwise, arrow-key menus ask four things in plain words: which model, which text to test on, which
+method, and how many bits. Grouping, GPTQ act-order and the calibration text sit behind one
+"Advanced settings?" question and default to the recommended values (groups of 128, the
+family's act-order default, C4). You confirm a one-line plan, watch it run, and get a table
+with your perplexity next to the published number plus a sentence that says what it means,
+for example "At 4 bits with GPTQ, groups of 128, opt-125m is 6.5% worse than the original on
+WikiText-2: 29.45 vs 27.66. Between 5% and 20% is noticeable but usable." "Quick preview"
+reads 20 passages when you just want a look (the row is marked partial). A wizard row is the
+same row `ptq run` would produce, same ids and schema, so it lands in `results/raw/runs/` and
+shows up in `ptq aggregate` and `ptq plot`. Add `--device cpu` to try it while the GPU is busy.
+Anything that cannot run on this machine is explained in a sentence with the fix, not a
+traceback.
+
+## Without a terminal
+
+Three ways in that never open a shell:
+
+- **The website.** [dercen.github.io/LLM-Precision](https://dercen.github.io/LLM-Precision/)
+  is `results/by-model/`, the charts, the results guide and HOW-IT-WORKS as web pages. CI
+  rebuilds it after every push that changes `results/` (`.github/workflows/site.yml`; one-time
+  setup: repository Settings → Pages → Source: GitHub Actions). `./ptq site` builds the same
+  thing into `site/` locally.
+- **The browser page.** `./ptq ui` starts a small local web page with the same choices as the
+  menu: the two-minute demo, "Check this machine", model, text, method, bits, advanced settings
+  behind a fold, a live log, and the verdict sentence. A run from the page is the same result
+  row the menu produces, and the results pages refresh when it finishes.
+  `scripts/desktop-shortcut.sh` puts "ptq-bench" in the Linux application menu so it starts
+  with a click.
+- **Google Colab.** [notebooks/ptq_colab.ipynb](https://colab.research.google.com/github/Dercen/LLM-Precision/blob/main/notebooks/ptq_colab.ipynb)
+  runs the setup, the checks and the demo on a free GPU, nothing installed at home.
+
+## Status and reproduced numbers (for researchers)
+
+Milestones M0–M6 of the plan (now in `docs/archive/`) are complete (environment, first number, RTN, GPTQ, the
 resident matrix, opt-6.7b streamed, Llama-2 on the mirror); the Llama-3.1-8B rows are the
 last run in progress. Open items are listed at the end of [docs/RESULTS.md](docs/RESULTS.md).
 
@@ -85,57 +187,6 @@ uv run ptq cache ls                                               # quantized-we
 M2 also settled a question the GPTQ README leaves open: its Tables 9 and 11 use the
 `--new-eval` dataset variants, not `get_ptb`/`get_c4`. The plain keys miss by 7–17%
 while the `_new` keys match to 0.1% on two independent columns each. See docs/DESIGN.md §7.
-
-## Easiest way in: the wizard
-
-```bash
-source scripts/env.sh
-uv run ptq            # or: uv run ptq wizard
-```
-
-Arrow-key menus for model → datasets → method → bits → group size, a one-line plan to
-confirm, then a table with your perplexity next to the published number. "Quick preview"
-runs 20 windows (marked partial) when you just want a look. A wizard row is the same row
-`ptq run` would produce — same ids, same schema — so it lands in `results/raw/runs/` and shows
-up in `ptq aggregate` and `ptq plot`. Add `--device cpu` to try it while the GPU is busy.
-
-## Quick start (new machine)
-
-Linux with an NVIDIA GPU; check the driver with `nvidia-smi` first.
-
-```bash
-# 1. tools
-curl -LsSf https://astral.sh/uv/install.sh | sh          # uv: Python + environment manager
-export PATH="$HOME/.local/bin:$PATH"
-
-# 2. code
-git clone https://github.com/Dercen/LLM-Precision.git
-cd LLM-Precision
-
-# 3. environment (one-time; ~3 GB of wheels, torch build chosen by extra)
-source scripts/env.sh                                    # cache paths under ~/ml (or $SCRATCH), hqq's build flag
-uv sync --extra cu130 --extra hqq --extra dev            # driver older than R580: --extra cu126; no GPU: --extra cpu
-
-# 4. check
-uv run ptq env-check                                     # torch+cu130, the GPU, TF32 off
-uv run pytest -q -m "smoke and not gpu"                  # ~1 min; downloads opt-125m and wikitext2
-
-# 5. use
-uv run ptq                                               # the wizard
-```
-
-- `source scripts/env.sh` is needed in **every new shell** (or add it to `~/.bashrc`); it is
-  safe to repeat. `DISABLE_CUDA=1` inside it is **hqq's build flag**, not a torch flag —
-  `ptq env-check` asserts CUDA is live so that can never regress unnoticed.
-- Nothing assumes this laptop: resident vs streamed, cache placement and time estimates
-  are decided from the machine at run time, so a bigger or smaller GPU just moves where
-  models stream.
-- Models and datasets download on first use into `~/ml/hf` (`$SCRATCH/hf` on a cluster).
-  `uv run ptq prefetch configs/experiments/<name>.yaml` fetches everything an experiment
-  needs up front — do that before a queued or offline job.
-- Result rows are one JSON file each under `results/raw/runs/`, so rows from several machines
-  merge by plain git or rsync and `uv run ptq aggregate` dedupes them by `run_id`.
-- Cluster specifics (SLURM script, `--shard k/n` across GPUs, offline flags): `docs/SERVER.md`.
 
 ## Exporting a quantized model to torch-mlir
 

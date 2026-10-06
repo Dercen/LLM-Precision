@@ -3,30 +3,30 @@ revision = 3
 requires-python = ">=3.12, <3.14"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra == 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra == 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'darwin' and extra == 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-ptq-bench-cpu' and extra != 'extra-9-ptq-bench-cu126' and extra != 'extra-9-ptq-bench-cu130'",
 ]
 conflicts = [[
@@ -953,6 +953,15 @@ wheels = [
 ]
 
 [[package]]
+name = "markdown"
+version = "3.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/4f/700155c8c20d9e655dd0732b5fc3c7614f291b9148da271d7388e50bf774/markdown-3.11.tar.gz", hash = "sha256:180224db6aed87ba9ce1f2781ebcd5826253de8ff637112090e24b84502bbf9f", size = 485623, upload-time = "2026-09-25T13:46:23.473Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/1e/32971905a7ab47f8b66866ed949fa48b104ba1c4a6fa57794c4f2c4b2cb8/markdown-3.11-py3-none-any.whl", hash = "sha256:cd6c89e7eb308c8b332ed673215a52d208a43f8bacc030b1419376129408719e", size = 111296, upload-time = "2026-09-25T13:46:22.163Z" },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1847,6 +1856,7 @@ cu130 = [
     { name = "torch", version = "2.14.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" } },
 ]
 dev = [
+    { name = "markdown" },
     { name = "ninja" },
     { name = "pytest" },
     { name = "pytest-timeout" },
@@ -1873,6 +1883,7 @@ requires-dist = [
     { name = "hqq", marker = "extra == 'hqq'", specifier = "==0.2.8.post1" },
     { name = "huggingface-hub", specifier = ">=1.5,<2" },
     { name = "lm-eval", extras = ["hf"], marker = "extra == 'lmeval'", specifier = "==0.4.13" },
+    { name = "markdown", marker = "extra == 'dev'", specifier = ">=3.5" },
     { name = "matplotlib" },
     { name = "ml-dtypes", marker = "extra == 'mlir'", specifier = ">=0.5" },
     { name = "ninja", marker = "extra == 'dev'" },
@@ -2490,10 +2501,10 @@ version = "2.14.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -2529,10 +2540,10 @@ version = "2.14.0+cpu"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -2563,10 +2574,10 @@ version = "2.14.0+cu126"
 source = { registry = "https://download.pytorch.org/whl/cu126" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -2601,10 +2612,10 @@ version = "2.14.0+cu130"
 source = { registry = "https://download.pytorch.org/whl/cu130" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version >= '3.13' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version >= '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [

@@ -1,0 +1,55 @@
+name: site
+
+# Publishes results/ and the guides as a website (GitHub Pages) after every push that
+# changes them. One-time setup in the repository: Settings -> Pages -> Source: GitHub
+# Actions. The site then lives at https://dercen.github.io/LLM-Precision/.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "results/**"
+      - "HOW-IT-WORKS.md"
+      - "src/ptqbench/site.py"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DISABLE_CUDA: "1"
+      UV_NO_SYNC: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.17"
+          enable-cache: true
+      - name: Sync (CPU wheels)
+        run: uv sync --extra cpu --extra dev
+      - name: Build the site
+        run: uv run --no-sync ptq site --out site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

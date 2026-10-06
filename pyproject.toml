@@ -39,7 +39,15 @@ lmeval = ["lm_eval[hf]==0.4.13"]
 # pin when `uv lock` can no longer find this one. ml_dtypes lets torch-mlir embed bf16.
 mlir  = ["torch-mlir==20260930.892", "ml_dtypes>=0.5"]
 # server = ["gptqmodel==7.5.0", "torchao==0.18.0"]   # M6; gptqmodel needs a matching nvcc
-dev = ["pytest", "pytest-timeout", "ruff", "setuptools>=77,<83", "wheel", "ninja"]
+dev = [
+    "pytest",
+    "pytest-timeout",
+    "ruff",
+    "setuptools>=77,<83",
+    "wheel",
+    "ninja",
+    "markdown>=3.5",
+]
 
 [project.scripts]
 ptq = "ptqbench.cli:main"

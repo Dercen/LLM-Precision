@@ -27,6 +27,9 @@ hf_cache/
 *.pth
 *.gguf
 
+# `ptq site` output (CI publishes it to GitHub Pages)
+/site/
+
 # `ptq export-mlir` output. The .mlir text embeds every weight (opt-125m: 480 MB, over
 # GitHub's 100 MB file limit), so only the JSON of the committed example is tracked.
 /exports/*

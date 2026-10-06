@@ -18,7 +18,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
-from .. import paths
+from .. import explain, paths
 
 ROW_COLUMNS = [
     "run_id", "quant_key", "model", "loaded_from", "dataset", "algo", "bits", "group_size", "sym",
@@ -193,20 +193,10 @@ def write_summary(df: pd.DataFrame, path: Path | None = None) -> Path:
     return path
 
 
-# Plain-language labels for the by-model pages. summary.md keeps the raw keys.
-ALGO_NAMES = {
-    "rtn": "RTN (plain rounding)",
-    "gptq": "GPTQ",
-    "awq_lite": "AWQ-lite",
-    "hqq": "HQQ",
-}
-DATASET_NAMES = {
-    "wikitext2": "WikiText-2 (Wikipedia articles)",
-    "c4_new": "C4 (web pages)",
-    "ptb_new": "PTB (1980s news sentences)",
-    "c4": "C4, random windows",
-    "ptb": "PTB, original split",
-}
+# Plain-language labels for the by-model pages live in ptqbench.explain, shared with the
+# wizard so both surfaces say the same thing. summary.md keeps the raw keys.
+ALGO_NAMES = explain.ALGO_NAMES
+DATASET_NAMES = explain.DATASET_NAMES
 DATASET_ORDER = ["wikitext2", "c4_new", "ptb_new", "c4", "ptb"]
 
 
@@ -330,7 +320,7 @@ def _model_page(model: str, rows: pd.DataFrame, failed: pd.DataFrame) -> str:
         lines += ["## Runs that did not produce a number", "",
                   f"{len(failed)} configuration(s) were skipped or failed. Reasons:", ""]
         for reason, n in failed["reason"].fillna("unknown").value_counts().items():
-            lines.append(f"- `{reason}` ({n})")
+            lines.append(f"- `{reason}` ({n}): {explain.explain_reason(reason)}")
         lines.append("")
     return "\n".join(lines)
 

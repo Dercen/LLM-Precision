@@ -74,5 +74,5 @@ Full precision: 32.3352
 
 42 configuration(s) were skipped or failed. Reasons:
 
-- `group_size_indivisible:128:[576, 1536]` (42)
+- `group_size_indivisible:128:[576, 1536]` (42): Groups of 128 do not divide this model's layer widths (576, 1536). Fix: choose groups of 64 or per row.
 
