@@ -30,7 +30,7 @@ hf_cache/
 # `ptq site` output (CI publishes it to GitHub Pages)
 /site/
 
-# `ptq export-mlir` output. The .mlir text embeds every weight (opt-125m: 503 MB, over
+# `ptq export-mlir` output. The .mlir text embeds every weight (opt-125m: 480 MB, over
 # GitHub's 100 MB file limit). The committed example's model.mlir is tracked through
 # Git LFS (see .gitattributes); every other export stays out of the repository.
 /exports/*

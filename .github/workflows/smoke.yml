@@ -48,5 +48,5 @@ jobs:
 
       - name: Smoke matrix (fp, rtn, gptq, hqq on CPU)
         run: |
-          uv run --no-sync ptq run configs/experiments/smoke_opt125m.yaml --device cpu
+          uv run --no-sync ptq --device cpu run configs/experiments/smoke_opt125m.yaml
           uv run --no-sync ptq aggregate

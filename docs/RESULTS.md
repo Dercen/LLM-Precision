@@ -116,7 +116,7 @@ for evaluation and under 5.5 GB while quantizing, with the hidden-state cache in
 
 ## Llama-3.1-8B
 
-_Run in progress (resumed after a power loss on 2026-09-22); no verified published reference, so these rows are descriptive only. First rows: fp16 pending, AWQ-lite 4-bit g128 6.677, GPTQ 4-bit per-row (act-order) 7.303._
+_11 of the 15 `streamed_llama.yaml` cells are in (the run was resumed after a power loss on 2026-09-22; the four RTN cells at 3 and 2 bits remain). No verified published reference, so these rows are descriptive only. fp16 6.240; at 4 bits GPTQ g128 6.609, AWQ-lite g128 6.677, RTN g128 6.825, GPTQ per-row (act-order) 7.303._
 
 ## Open items
 

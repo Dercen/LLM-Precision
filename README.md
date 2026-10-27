@@ -8,7 +8,7 @@ quantization method win back?
 
 | I want to… | Go to |
 |---|---|
-| **Read the results** (nothing to install) | The website: [dercen.github.io/LLM-Precision](https://dercen.github.io/LLM-Precision/), rebuilt from this repository after every push. The same pages are in [results/by-model/](results/by-model/README.md), and [results/README.md](results/README.md) explains the words. |
+| **Read the results** (nothing to install) | The website: [dercen.github.io/LLM-Precision](https://dercen.github.io/LLM-Precision/), rebuilt from this repository after every push that changes the results or the guides. The same pages are in [results/by-model/](results/by-model/README.md), and [results/README.md](results/README.md) explains the words. |
 | **Measure one model myself** | [Quick start](#quick-start-new-machine) below: `./install.sh`, then `./ptq` opens a menu with a two-minute demo, or `./ptq ui` opens the same thing in your browser. No GPU? [Run it on Google Colab](https://colab.research.google.com/github/Dercen/LLM-Precision/blob/main/notebooks/ptq_colab.ipynb). |
 | **Understand how it works** | [HOW-IT-WORKS.md](HOW-IT-WORKS.md): the whole pipeline in plain language, step by step. |
 | **Run or extend the experiments** | [Running the matrix](#running-the-matrix), [Adding a model](#adding-a-model), and [docs/DESIGN.md](docs/DESIGN.md) for the protocol. |
@@ -56,7 +56,7 @@ export PATH="$HOME/.local/bin:$PATH"
 source scripts/env.sh                                    # cache paths under ~/ml (or $SCRATCH), hqq's build flag
 uv sync --extra cu130 --extra hqq --extra dev            # driver older than R580: --extra cu126; no GPU: --extra cpu
 uv run ptq env-check                                     # the exact, provenance-grade report (CI runs this)
-uv run pytest -q -m "smoke and not gpu"                  # ~1 min; downloads opt-125m and wikitext2
+uv run pytest -q -m "smoke and not gpu"                  # 1-2 min; downloads opt-125m and wikitext2
 ```
 
 - `source scripts/env.sh` is needed in **every new shell** that calls `uv run ptq` directly
@@ -100,9 +100,10 @@ Three ways in that never open a shell:
 
 - **The website.** [dercen.github.io/LLM-Precision](https://dercen.github.io/LLM-Precision/)
   is `results/by-model/`, the charts, the results guide and HOW-IT-WORKS as web pages. CI
-  rebuilds it after every push that changes `results/` (`.github/workflows/site.yml`; one-time
-  setup: repository Settings → Pages → Source: GitHub Actions). `./ptq site` builds the same
-  thing into `site/` locally.
+  rebuilds it after every push that changes `results/`, HOW-IT-WORKS.md or the site builder
+  (`.github/workflows/site.yml`; the repository's Pages source is set to GitHub Actions, the
+  one-time setup that workflow needs, and `Actions → site → Run workflow` rebuilds it by
+  hand). `./ptq site` builds the same thing into `site/` locally.
 - **The browser page.** `./ptq ui` starts a small local web page with the same choices as the
   menu: the two-minute demo, "Check this machine", model, text, method, bits, advanced settings
   behind a fold, a live log, and the verdict sentence. A run from the page is the same result
@@ -115,8 +116,11 @@ Three ways in that never open a shell:
 ## Status and reproduced numbers (for researchers)
 
 Milestones M0–M6 of the plan (now in `docs/archive/`) are complete (environment, first number, RTN, GPTQ, the
-resident matrix, opt-6.7b streamed, Llama-2 on the mirror); the Llama-3.1-8B rows are the
-last run in progress. Open items are listed at the end of [docs/RESULTS.md](docs/RESULTS.md).
+resident matrix, opt-6.7b streamed, Llama-2 on the mirror). Llama-3.1-8B has 11 of the 15
+WikiText-2 cells of `streamed_llama.yaml` (fp16 6.24; the best 4-bit cell is GPTQ g128 at
+6.61); its four RTN cells at 3 and 2 bits are still to run. `results/tables/summary.md`
+counts 470 complete rows in all, 83 of them joined to a published number. Open items are
+listed at the end of [docs/RESULTS.md](docs/RESULTS.md).
 
 
 ### Reproduced published numbers (opt-125m, fp16 on an RTX 4070)
@@ -197,7 +201,7 @@ Step-by-step guide: [docs/EXPORT-MLIR.md](docs/EXPORT-MLIR.md).
 once more while recording the grid it rounds on, and writes three things: a
 `torch.nn.Module` whose target Linears hold **integer codes plus scale/zero-point** with the
 dequantization performed in `forward` (not folded into a float weight), the same model as
-**torch-dialect MLIR** via `torch_mlir.fx.export_and_import`, and the per-layer accuracy as
+**torch-dialect MLIR** through `torch.export` and torch-mlir's FX importer, and the per-layer accuracy as
 JSON keyed by module name. The dequantized weights are bitwise the ones the perplexity rows
 were measured with; `layers.json` records that check per module.
 
@@ -266,7 +270,9 @@ binds non-persistent buffers (Llama's rotary `inv_freq`), so Llama-family models
 
 Practicalities: the `.mlir` text holds every weight as hex (opt-125m: 480 MB and 14 s on the
 CPU, where the model is fp32; about 0.3 GB on the GPU at fp16), so `/exports/`, `*.mlir` and
-`*.mlirbc` are git-ignored. Host RAM needs the model, the codes, and with `--score-windows`
+`*.mlirbc` are git-ignored. The one committed example, `exports/opt125m-rtn4-g128/`, keeps its
+`model.mlir` in Git LFS: install `git-lfs` before cloning, run `git lfs pull` afterwards, or
+regenerate it with the command in that folder's README. Host RAM needs the model, the codes, and with `--score-windows`
 another 1.5× the target weights (skipped with a note if that would not fit). An export on the
 CPU has `dtype=torch.float32`, a different `quant_key` from the GPU fp16 rows, so
 `perplexity_rows` only joins when the export runs on the same device class as the benchmark.
@@ -283,8 +289,9 @@ repo: facebook/opt-6.7b            # Hugging Face id
 revision: a45aa65bbeb77c...        # optional but recommended: pins the exact weights
 gated: false                       # true if the Hub asks you to accept a licence
 mirror: SomeOrg/same-weights       # optional ungated copy, used when the repo is gated
+mirror_revision: 34a98bf3eaecc...   # optional: pins the mirror's weights the same way
 tokenizer_class: GPT2Tokenizer     # what `type(tokenizer).__name__` prints; recorded on rows
-family: opt                        # opt or llama (see below)
+family: opt                        # opt, llama or gemma (see below)
 dtype: auto                        # auto = fp16, or bf16 for Llama-3-style models
 extra_group_sizes: [64]            # optional: extra group sizes if 128 does not divide the hidden size
 notes: anything worth remembering
@@ -296,31 +303,44 @@ in experiment files automatically. Weights download on first use (or `uv run ptq
 be streamed through it one block at a time.
 
 `family` tells the code where the transformer blocks are and which layers to quantize.
-Anything built like OPT or like Llama/Mistral/Qwen2 works as is. A genuinely different
-architecture needs one entry in `src/ptqbench/models/families.py` (the block list path,
-the linear layer names, the norms that come after the last block, and the AWQ scale
-groups) — copy the `LLAMA` entry and adjust the names.
+Anything built like OPT or like Llama/Mistral/Qwen2 works as is. Gemma-2/3 models take
+`gemma`: Llama's layout, but AWQ-lite skips them with a recorded reason because their extra
+feed-forward norms would receive the wrong scales. A genuinely different architecture needs
+one entry in `src/ptqbench/models/families.py` (the block list path, the linear layer names,
+the norms that come after the last block, the AWQ scale groups, and the attention and MLP
+module names that `ptq export-mlir --slice` cuts at) — copy the `LLAMA` entry and adjust
+the names.
 
 ## Adding a dataset
 
-Datasets are functions in `src/ptqbench/data/datasets.py`. Each one loads text, joins
-it into a single stream, tokenizes it once and returns a `TokenStream`:
+Evaluation datasets are loader functions in `src/ptqbench/data/datasets.py`. A loader
+returns the raw text of its split, the split's name, a label for how the documents were
+joined, and how many source rows it read. `build()` does the rest once per tokenizer: it
+tokenizes the stream, adds a BOS token per window for Llama-style tokenizers, caches the
+result, and hands evaluation a `TokenStream`.
 
 ```python
-@register("my_corpus")
-def _my_corpus(tokenizer, seqlen: int) -> TokenStream:
-    ds = _hf_load("some-org/some-dataset", split="test")      # any Hugging Face dataset
-    text = "\n\n".join(ds["text"])                            # how the documents are joined
-    ids = _truncate_to_windows(_encode(tokenizer, text), seqlen)
-    return TokenStream("my_corpus", ids, seqlen, "test", '"\n\n".join', len(ds))
+def _my_corpus():
+    from datasets import load_dataset
+
+    rows = load_dataset("some-org/some-dataset", split="test")     # any Hugging Face dataset
+    return "\n\n".join(rows["text"]), "test", '"\\n\\n".join', len(rows)
+
+
+_LOADERS = {
+    "wikitext2": _wikitext2,
+    ...
+    "my_corpus": _my_corpus,                                        # one line in the table of loaders
+}
 ```
 
-That is all: the key `my_corpus` is then accepted by `--dataset`, by experiment YAMLs
-and by the wizard's checkbox list (add a one-line description to `DATASETS` in
-`src/ptqbench/wizard.py` if you want it labelled there). If a paper reports perplexity
-on it, add those rows to `references/literature.yaml` and `ptq aggregate` will show the
-published number and the delta next to yours. Calibration sets for GPTQ/AWQ live in
-`src/ptqbench/data/calibration.py` the same way.
+That is all: the key `my_corpus` is then accepted by `--dataset`, by experiment YAMLs and
+by the wizard. To label it in the menus, add it to `DATASET_MENU` and `DATASET_NAMES` in
+`src/ptqbench/explain.py`. If a paper reports perplexity on it, add those rows to
+`references/literature.yaml` and `ptq aggregate` will show the published number and the
+delta next to yours. Calibration sets for GPTQ and AWQ-lite live in
+`src/ptqbench/data/calibration.py` the same way: a function that returns `(nsamples, seqlen)`
+token ids, listed in `_BUILDERS`.
 
 ## Gated models (needs you)
 
@@ -339,6 +359,7 @@ The repeated fp16 cell is the check that the mirror weights are the same weights
 
 ## Hardware
 
-Developed on Pop!_OS 24.04, i9-14900HX, 31 GB RAM, RTX 4070 Laptop (8 GB, sm_89),
-driver 595.84 / CUDA 13.2, torch 2.14.0+cu130. Models up to opt-1.3b run resident
-in fp16; 6.7B-8B run through block-streamed evaluation. See docs/DESIGN.md §2.
+Developed on an i9-14900HX laptop with 31 GB RAM and an RTX 4070 Laptop GPU (8 GB, sm_89),
+first under Pop!_OS 24.04 (driver 595.84 / CUDA 13.2) and now Fedora 44 (driver 615.71 /
+CUDA 13.4), with torch 2.14.0+cu130 and transformers 5.17. Models up to opt-1.3b run
+resident in fp16; 6.7B-8B run through block-streamed evaluation. See docs/DESIGN.md §2.
