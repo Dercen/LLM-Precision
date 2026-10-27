@@ -29,6 +29,8 @@ from ..models import families
 from ..models import loader as ml
 from ..quantizers import fakequant as fq
 from ..runner import execute as X
+from . import files as files_mod
+from . import golden as golden_mod
 from . import mlir as mlir_mod
 from .quantized import QuantizedLinear, swap_in_quantized
 
@@ -50,6 +52,11 @@ class ExportOptions:
     #: which lowers to `tm_tensor.scan`, an op a stock `mlir-opt` cannot parse. Off by
     #: default so the default raw graph is unchanged.
     explicit_positions: bool = False
+    #: Golden test vectors under `golden/`: a real, seeded input and the output of every
+    #: exported function, plus the tolerance derived from a float64 rerun (export/golden.py).
+    golden: bool = False
+    golden_dataset: str = golden_mod.DEFAULT_GOLDEN_DATASET
+    golden_seed: int = golden_mod.DEFAULT_GOLDEN_SEED
     #: Windows of `score_dataset` on which each layer's output is compared with the
     #: output its pre-rounding weight gives on the same input; 0 disables scoring.
     score_windows: int = 0
@@ -72,6 +79,7 @@ class ExportResult:
     manifest_path: Path
     mlir_path: Path | None = None
     linalg_path: Path | None = None
+    golden_path: Path | None = None
     notes: list[str] = field(default_factory=list)
 
 
@@ -142,14 +150,23 @@ def export_quantized(
 
     mlir_files: dict[str, str | None] = {}
     mlir_stats: dict[str, Any] = {}
-    if options.write_mlir:
+    golden_index: dict[str, Any] | None = None
+    golden_path: Path | None = None
+    if options.write_mlir or options.golden:
         model.to("cpu")
-        example = _example_input_ids(loaded, options.seqlen)
-        mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options)
-        if (note := tm_tensor_note(mlir_stats, "model")) is not None:
-            notes.append(note)
+        example, source = _example_and_source(loaded, options)
+        if options.write_mlir:
+            mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options)
+            if (note := tm_tensor_note(mlir_stats, "model")) is not None:
+                notes.append(note)
+        if options.golden:
+            case = _whole_model_golden_case(model, loaded, example, source, options, notes)
+            golden_path, golden_index = golden_mod.write_golden(out_dir, [case])
 
-    manifest = _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, numerics, notes, time.perf_counter() - started)
+    manifest = _manifest(
+        run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats,
+        golden_index, numerics, notes, time.perf_counter() - started,
+    )
     layers_path = _write_json(out_dir / "layers.json", layers)
     manifest_path = _write_json(out_dir / "export.json", manifest)
     return ExportResult(
@@ -157,7 +174,40 @@ def export_quantized(
         out_dir=out_dir, layers_path=layers_path, manifest_path=manifest_path,
         mlir_path=_file_path(out_dir, mlir_files.get("mlir")),
         linalg_path=_file_path(out_dir, mlir_files.get("mlir_linalg")),
-        notes=notes,
+        golden_path=golden_path, notes=notes,
+    )
+
+
+def _example_and_source(loaded: ml.LoadedModel, options: ExportOptions) -> tuple[torch.Tensor, dict[str, Any] | None]:
+    """The `[1, seqlen]` token ids the whole model is exported with.
+
+    Real text from the golden dataset when golden vectors are wanted (the same tensor
+    is then the golden input, so the file a consumer tests with is exactly what was
+    traced); otherwise the BOS-filled placeholder the export always used, which only
+    fixes the shape.
+    """
+    if options.golden:
+        return golden_mod.realistic_window(
+            loaded.tokenizer, options.golden_dataset, options.golden_seed, options.seqlen
+        )
+    return _example_input_ids(loaded, options.seqlen), None
+
+
+#: Names of the whole-model function's inputs and outputs in the golden index.
+WHOLE_MODEL_INPUTS = ("input_ids",)
+WHOLE_MODEL_OUTPUTS = ("logits",)
+
+
+def _whole_model_golden_case(model, loaded, example, source, options, notes) -> golden_mod.GoldenCase:
+    """Golden vectors for `main`: the real token ids in, the logits out, tolerance from
+    a float64 rerun when a float64 copy of the model fits in host RAM."""
+    measure = golden_mod.fp64_reference_fits(loaded.model_bytes)
+    if not measure:
+        notes.append("golden tolerance not measured: a float64 copy of the model does not fit in free host RAM")
+    fn = whole_model_function(model, options)
+    return golden_mod.build_case(
+        WHOLE_MODEL_FUNC, fn, [(WHOLE_MODEL_INPUTS[0], example)], list(WHOLE_MODEL_OUTPUTS),
+        source=source, measure=measure,
     )
 
 
@@ -382,13 +432,14 @@ def _matching_rows(quant_key: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, numerics, notes, seconds) -> dict[str, Any]:
+def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, numerics, notes, seconds) -> dict[str, Any]:
     rel = [v["rel_error"] for v in layers.values()]
     out_rel = [v["output_rel_error"] for v in layers.values() if v.get("output_rel_error") is not None]
     files: dict[str, Any] = {
         "layers": "layers.json",
         "mlir": None, "mlir_bytecode": None, "mlir_linalg": None, "mlir_linalg_bytecode": None,
         **mlir_files,
+        "golden": f"{golden_mod.GOLDEN_DIR}/{golden_mod.INDEX_NAME}" if golden_index else None,
     }
     return {
         "format_version": FORMAT_VERSION,
@@ -408,6 +459,10 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
         "schemes_used": sorted({m.scheme for m in modules.values()}),
         "files": files,
         "mlir": {"example_seqlen": options.seqlen, **mlir_stats} if mlir_stats else None,
+        "golden": {
+            "dataset": options.golden_dataset, "seed": options.golden_seed,
+            "functions": golden_mod.summary(golden_index), "tolerance_policy": golden_index["tolerance_policy"],
+        } if golden_index else None,
         "summary": {
             "mean_rel_error": sum(rel) / len(rel) if rel else None,
             "max_rel_error": max(rel) if rel else None,
@@ -423,7 +478,4 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
 
 
 def _write_json(path: Path, payload: Any) -> Path:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-    tmp.replace(path)
-    return path
+    return files_mod.write_json(path, payload)

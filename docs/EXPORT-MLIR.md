@@ -105,6 +105,42 @@ Other switches you may want:
 | `--dynamic-seqlen` | let the exported model accept any input length |
 | `--device cpu` | run on the CPU even if a GPU is present (put it before `export-mlir`) |
 
+## Golden test vectors: `--golden`
+
+Anyone who runs the exported function somewhere else (a simulator, a C harness, another
+compiler) needs a known input and the answer the real model gives for it. `--golden`
+writes exactly that under `golden/`:
+
+```
+golden/index.json            what every tensor is, where it came from, and the tolerance
+golden/main/input_ids.npy    the input, numpy format (shape and dtype inside)
+golden/main/input_ids.bin    the same bytes raw: little-endian, row-major, no header
+golden/main/logits.npy       the output PyTorch produced for that input
+golden/main/logits.bin
+```
+
+- **The input is real text, never random numbers.** It is the first `--seqlen` tokens of
+  one window of the benchmark's own WikiText-2 stream (`--golden-dataset` chooses the
+  text, `--golden-seed` the window; the index records which window). The same tensor is
+  the example input the MLIR was traced with.
+- **The index lists, per tensor:** name, role (input or output), shape, dtype, byte
+  length, both file names and a SHA-256 of the bytes.
+- **The tolerance is measured, not guessed.** The function is run a second time in
+  float64 on the same weights (the dequantized values, which float64 holds exactly), so
+  the distance between the two outputs is the reference's own fp32 rounding. The index
+  records that distance (`max_abs_err_vs_fp64`, `rel_fro_err_vs_fp64`) and the
+  recommended tolerance: `atol` = 8 × the measured distance (with a floor of 8 fp32
+  last-place units of the largest output value), `rel_fro_tol` = 8 × the measured
+  relative distance. The factor 8 is two for the consumer's own independent rounding and
+  four for a different accumulation order, fused multiply-adds and a different `exp` or
+  `rsqrt` in a bare-metal math library; it is a named constant in
+  `src/ptqbench/export/golden.py` and is written into the index as `tolerance_policy`.
+  A consumer passes when `max|got − golden| ≤ atol` and `‖got − golden‖ / ‖golden‖ ≤
+  rel_fro_tol`. For logits the index also says how often the top token agreed between
+  fp32 and float64 (`argmax_agreement`), a coarser check that needs no tolerance.
+
+`export.json` repeats the headline numbers under `golden`.
+
 ## The lowered form: `--output-type linalg`
 
 `model.mlir` is the model in torch-mlir's *torch dialect*: one op per PyTorch operation,

@@ -275,6 +275,7 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         representation=args.repr, seqlen=args.seqlen, dynamic_seqlen=args.dynamic_seqlen,
         write_mlir=not args.no_mlir, bytecode=args.bytecode, output_type=args.output_type,
         explicit_positions=args.explicit_positions, score_windows=args.score_windows,
+        golden=args.golden, golden_dataset=args.golden_dataset, golden_seed=args.golden_seed,
         score_dataset=args.score_dataset, score_seqlen=args.score_seqlen, score_seed=args.seed,
         eval_mode=args.eval_mode, deterministic=args.deterministic,
     )
@@ -293,6 +294,11 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         print(_fmt("mlir", f"{result.mlir_path} ({m['mlir']['mlir_bytes'] / 1024**2:.1f} MB)"))
     if result.linalg_path:
         print(_fmt("mlir (linalg)", f"{result.linalg_path} ({m['mlir']['linalg_bytes'] / 1024**2:.1f} MB)"))
+    if result.golden_path:
+        for name, g in m["golden"]["functions"].items():
+            detail = "tolerance not measured" if g is None else f"max|err| vs fp64 {g['max_abs_err_vs_fp64']:.3g} -> atol {g['atol']:.3g}"
+            print(_fmt(f"golden {name}", detail))
+        print(_fmt("golden index", result.golden_path))
     print(_fmt("layers", result.layers_path))
     print(_fmt("manifest", result.manifest_path))
     for note in result.notes:
@@ -432,6 +438,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_exp.add_argument("--bytecode", action="store_true", help="also write model.mlirbc (and model.linalg.mlirbc)")
     p_exp.add_argument("--no-mlir", action="store_true", help="skip the .mlir file (nn.Module round trip and JSON only)")
+    p_exp.add_argument(
+        "--golden", action="store_true",
+        help="write golden/: a real seeded input and the output of every exported function as .npy + .bin, "
+             "with the comparison tolerance derived from a float64 rerun",
+    )
+    p_exp.add_argument("--golden-dataset", default="wikitext2", help="text the golden token ids come from")
+    p_exp.add_argument("--golden-seed", type=int, default=0, help="picks the window of that text")
     p_exp.add_argument("--score-windows", type=int, default=0, help="windows for per-layer output error (0 = off)")
     p_exp.add_argument("--score-dataset", default="wikitext2")
     p_exp.add_argument("--score-seqlen", type=int, default=512)
