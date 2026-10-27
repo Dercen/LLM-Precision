@@ -6,9 +6,14 @@ hardware, a C harness, another compiler -- can be checked against the real model
 
 Layout, under `<out_dir>/golden/`:
 
-    index.json                       one entry per function: tensors, source, tolerance
-    <function>/<tensor>.npy          numpy format, dtype and shape included
-    <function>/<tensor>.bin          the same bytes raw, little-endian, row-major, no header
+    index.json                           one entry per function: tensors, source, tolerance
+    <function>/inputs/<tensor>.npy       numpy format, dtype and shape included
+    <function>/inputs/<tensor>.bin       the same bytes raw, little-endian, row-major, no header
+    <function>/outputs/<tensor>.npy      likewise for what the function returns
+    <function>/outputs/<tensor>.bin
+
+Inputs and outputs live in separate directories because a stage's cache comes in and
+goes out under the same name (`k_cache`).
 
 Inputs are never random noise. The whole model and the stages take real token ids from
 a seeded window of the benchmark's own wikitext2 stream (`realistic_window`); a slice
@@ -73,26 +78,31 @@ TOLERANCE_SAFETY_FACTOR = 8.0
 #: happens to compute exactly (a copied cache slot, a zero) would get a tolerance of 0.
 FP32_EPSILON = 2.0**-23
 
-#: Roles a tensor plays in a golden case.
+#: Roles a tensor plays in a golden case, and the subdirectory of the function each goes to.
 ROLE_INPUT = "input"
 ROLE_OUTPUT = "output"
+ROLE_DIRS = {ROLE_INPUT: "inputs", ROLE_OUTPUT: "outputs"}
 
 
 # ---- tensors on disk --------------------------------------------------------------------
 
 
 def write_tensor(directory: Path, name: str, tensor: torch.Tensor, *, role: str) -> dict[str, Any]:
-    """Write `<directory>/<name>.npy` and `.bin` and return the index entry for both."""
+    """Write `<directory>/<inputs|outputs>/<name>.npy` and `.bin`; the index entry's file
+    names are relative to `directory`."""
+    if role not in ROLE_DIRS:
+        raise ValueError(f"role must be one of {sorted(ROLE_DIRS)}, got {role!r}")
     directory = Path(directory)
+    subdir = ROLE_DIRS[role]
     arr, dtype_name = F.numpy_little_endian(tensor)
     raw = arr.tobytes()
-    npy_path = directory / f"{name}{NPY_SUFFIX}"
+    npy_path = directory / subdir / f"{name}{NPY_SUFFIX}"
     npy_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = npy_path.with_name(npy_path.name + F.TMP_SUFFIX)
     with open(tmp, "wb") as fh:
         np.save(fh, arr)
     tmp.replace(npy_path)
-    bin_path = F.write_bytes(directory / f"{name}{BIN_SUFFIX}", raw)
+    bin_path = F.write_bytes(directory / subdir / f"{name}{BIN_SUFFIX}", raw)
     return {
         "name": name,
         "role": role,
@@ -100,8 +110,8 @@ def write_tensor(directory: Path, name: str, tensor: torch.Tensor, *, role: str)
         "dtype": dtype_name,
         "storage_dtype": str(arr.dtype),
         "byte_length": len(raw),
-        "npy": npy_path.name,
-        "bin": bin_path.name,
+        "npy": f"{subdir}/{npy_path.name}",
+        "bin": f"{subdir}/{bin_path.name}",
         "sha256": F.sha256_of(raw),
     }
 
@@ -337,7 +347,7 @@ def write_golden(out_dir: Path, cases: list[GoldenCase]) -> tuple[Path, dict[str
     index = {
         "format_version": GOLDEN_FORMAT_VERSION,
         "byte_order": BYTE_ORDER,
-        "layout": "row-major (C order), no header, dtype and shape as listed",
+        "layout": "row-major (C order), no header, dtype and shape as listed; file names are relative to the function directory",
         "tolerance_policy": tolerance_policy(),
         "functions": functions,
     }

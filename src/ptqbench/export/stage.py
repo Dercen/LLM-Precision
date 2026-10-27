@@ -33,6 +33,7 @@ from . import files as files_mod
 from . import golden as golden_mod
 from . import mlir as mlir_mod
 from . import slices as slices_mod
+from . import stages as stages_mod
 from . import weights as weights_mod
 from .quantized import QuantizedLinear, swap_in_quantized
 
@@ -68,6 +69,12 @@ class ExportOptions:
     #: `external`: a graph-only .mlir that takes them as arguments, plus weights.bin and
     #: weights.json (export/weights.py).
     weights: str = "embedded"
+    #: Prefill, prefill-KV and decode as three functions with an explicit static KV cache
+    #: (export/stages.py). `max_cache_len` bounds every shape; the prompt is `seqlen`
+    #: tokens, the second chunk `prefill_kv_seqlen`; the whole-model `main` is not written.
+    stages: bool = False
+    max_cache_len: int = stages_mod.DEFAULT_MAX_CACHE_LEN
+    prefill_kv_seqlen: int = stages_mod.DEFAULT_PREFILL_KV_SEQLEN
     #: Windows of `score_dataset` on which each layer's output is compared with the
     #: output its pre-rounding weight gives on the same input; 0 disables scoring.
     score_windows: int = 0
@@ -92,6 +99,7 @@ class ExportResult:
     linalg_path: Path | None = None
     golden_path: Path | None = None
     weights_path: Path | None = None
+    stage_paths: dict[str, Path] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
 
@@ -165,11 +173,14 @@ def export_quantized(
     golden_index: dict[str, Any] | None = None
     golden_path: Path | None = None
     slice_report: slices_mod.SliceReport | None = None
+    stages_report: dict[str, Any] | None = None
     cases: list[golden_mod.GoldenCase] = []
     writer = _weights_writer(model, modules, options)
-    if options.write_mlir or options.golden or options.slice:
+    if options.write_mlir or options.golden or options.slice or options.stages:
         model.to("cpu")
-        if options.slice:
+        if options.stages:
+            mlir_files, mlir_stats, stages_report, cases = _export_stages(model, loaded, fam, out_dir, options, notes, writer)
+        elif options.slice:
             mlir_files, mlir_stats, slice_report, cases = _export_slice(model, loaded, fam, out_dir, options, notes, writer)
         else:
             example, source = _example_and_source(loaded, options)
@@ -185,7 +196,8 @@ def export_quantized(
 
     manifest = _manifest(
         run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats,
-        golden_index, slice_report, weights_files, weights_stats, numerics, notes, time.perf_counter() - started,
+        golden_index, slice_report, stages_report, weights_files, weights_stats, numerics, notes,
+        time.perf_counter() - started,
     )
     layers_path = _write_json(out_dir / "layers.json", layers)
     manifest_path = _write_json(out_dir / "export.json", manifest)
@@ -194,8 +206,94 @@ def export_quantized(
         out_dir=out_dir, layers_path=layers_path, manifest_path=manifest_path,
         mlir_path=_file_path(out_dir, mlir_files.get("mlir")),
         linalg_path=_file_path(out_dir, mlir_files.get("mlir_linalg")),
-        golden_path=golden_path, weights_path=_file_path(out_dir, weights_files.get("weights")), notes=notes,
+        golden_path=golden_path, weights_path=_file_path(out_dir, weights_files.get("weights")),
+        stage_paths={
+            name: out_dir / (f["mlir"] or f["mlir_linalg"]) for name, f in (mlir_files.get("stages") or {}).items()
+            if f["mlir"] or f["mlir_linalg"]
+        },
+        notes=notes,
     )
+
+
+def _export_stages(
+    model: nn.Module, loaded: ml.LoadedModel, fam: families.Family, out_dir: Path, options: ExportOptions,
+    notes: list[str], writer: weights_mod.WeightsWriter | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], list[golden_mod.GoldenCase]]:
+    """prefill, prefill_kv and decode as three functions, checked against the eager model.
+
+    One real text window of `seqlen + prefill_kv_seqlen + DECODE_CHECK_STEPS` tokens
+    feeds everything: the example arguments each stage is traced with (the caches are
+    the real outputs of the previous stage), the golden vectors, and the round trip.
+    The prefill logits' fp32-vs-float64 distance gives the tolerance the round trip is
+    held to, so it is measured whether or not golden vectors are written.
+    """
+    if options.slice:
+        raise ValueError("--stages and --slice are mutually exclusive")
+    if options.dynamic_seqlen:
+        raise ValueError("--stages exports static shapes only; drop --dynamic-seqlen")
+    n_tokens = options.seqlen + options.prefill_kv_seqlen + stages_mod.DECODE_CHECK_STEPS
+    if n_tokens > options.max_cache_len:
+        raise ValueError(
+            f"--max-cache-len {options.max_cache_len} cannot hold the {options.seqlen}-token prompt, the "
+            f"{options.prefill_kv_seqlen}-token second chunk and {stages_mod.DECODE_CHECK_STEPS} decode steps ({n_tokens})"
+        )
+    ids, text_source = golden_mod.realistic_window(loaded.tokenizer, options.golden_dataset, options.golden_seed, n_tokens)
+    stages = stages_mod.build_stages(model, fam, options.max_cache_len)
+    run = stages_mod.run_stages(stages, ids, options.seqlen, options.prefill_kv_seqlen)
+
+    measure = golden_mod.fp64_reference_fits(loaded.model_bytes)
+    if not measure:
+        notes.append("stage tolerance not measured: a float64 copy of the model does not fit in free host RAM")
+    offsets = {"prefill": 0, "prefill_kv": options.seqlen, "decode": options.seqlen + options.prefill_kv_seqlen}
+    cache_from = {"prefill": None, "prefill_kv": "prefill", "decode": "prefill_kv"}
+    cases: list[golden_mod.GoldenCase] = []
+    for stage in stages_mod.STAGES:
+        if stage != "prefill" and not options.golden:
+            continue  # only the prefill case is needed for the tolerance
+        source = {
+            "kind": "token_ids" if stage == "prefill" else "token_ids_and_cache", "stage": stage, "text": text_source,
+            "token_offset": offsets[stage], "n_tokens": int(run.args[stage][0].shape[1]), "cache_from": cache_from[stage],
+        }
+        inputs = list(zip(stages_mod.stage_input_names(stage), run.args[stage]))
+        cases.append(golden_mod.build_case(stage, stages[stage], inputs, list(stages_mod.STAGE_OUTPUTS), source=source, measure=measure))
+    tolerance = None
+    if cases[0].tolerance:
+        logits_tol = cases[0].tolerance[0]
+        tolerance = {"atol": logits_tol["atol"], "rel_fro_tol": logits_tol["rel_fro_tol"]}
+    check = stages_mod.check_stages(model, stages, run, tolerance)
+    if tolerance is not None and not check["all_within_tolerance"]:
+        raise RuntimeError(
+            f"the stage round trip does not match the eager model: max|diff| {check['max_abs_diff']:.3g} "
+            f"at {check['worst']} exceeds atol {tolerance['atol']:.3g}"
+        )
+
+    files: dict[str, Any] = {"stages": {}}
+    stats: dict[str, Any] = {"functions": {}, "forms": [], "weights": "lifted" if writer else "embedded"}
+    if options.write_mlir:
+        for stage in stages_mod.STAGES:
+            imported = mlir_mod.import_function(
+                stages[stage], run.args[stage], func_name=stage, lift_weights=writer is not None
+            )
+            if writer is not None:
+                writer.add_function(imported.func_name, imported.n_user_inputs, imported.lifted)
+            f, st = mlir_mod.write_forms(imported, out_dir, stage, output_type=options.output_type, bytecode=options.bytecode)
+            files["stages"][stage] = f
+            stats["functions"][stage] = st
+            stats["forms"] = st["forms"]
+            if (note := tm_tensor_note(st, stage)) is not None:
+                notes.append(note)
+    report = {
+        "max_cache_len": options.max_cache_len,
+        "seqlen": options.seqlen,
+        "prefill_kv_seqlen": options.prefill_kv_seqlen,
+        "cache_shape": list(stages["prefill"].shape),
+        "cache_layout": stages_mod.CACHE_LAYOUT,
+        "position": "0-d int64: the number of tokens already in the cache (the first new token's position)",
+        "signatures": {stage: stages_mod.describe_signature(stage, run.args[stage], run.outputs[stage]) for stage in stages_mod.STAGES},
+        "text": text_source,
+        "check": check,
+    }
+    return files, stats, report, cases if options.golden else []
 
 
 def _weights_writer(model: nn.Module, modules: dict[str, QuantizedLinear], options: ExportOptions) -> weights_mod.WeightsWriter | None:
@@ -529,7 +627,7 @@ def _matching_rows(quant_key: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, slice_report, weights_files, weights_stats, numerics, notes, seconds) -> dict[str, Any]:
+def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, slice_report, stages_report, weights_files, weights_stats, numerics, notes, seconds) -> dict[str, Any]:
     rel = [v["rel_error"] for v in layers.values()]
     out_rel = [v["output_rel_error"] for v in layers.values() if v.get("output_rel_error") is not None]
     files: dict[str, Any] = {
@@ -559,6 +657,7 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
         "files": files,
         "mlir": {"example_seqlen": options.seqlen, **mlir_stats} if mlir_stats else None,
         "slice": slice_report.as_dict() if slice_report else None,
+        "stages": stages_report,
         "weights": weights_stats or {"mode": "embedded"},
         "golden": {
             "dataset": options.golden_dataset, "seed": options.golden_seed,

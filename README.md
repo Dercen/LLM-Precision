@@ -24,6 +24,7 @@ Every document in the project, and who it is for:
 | [docs/RESULTS.md](docs/RESULTS.md) | researchers | findings with numbers, and the open items |
 | [docs/DESIGN.md](docs/DESIGN.md) | researchers, developers | the measurement protocol, algorithms, datasets, reference numbers |
 | [docs/EXPORT-MLIR.md](docs/EXPORT-MLIR.md) | compiler users | step by step: a quantized model as torch-mlir MLIR |
+| [docs/HANDOFF-FORMAT.md](docs/HANDOFF-FORMAT.md) | the vault compiler | the contract: every file, function signature, weight layout, packing order, golden vectors and tolerances |
 | [docs/SERVER.md](docs/SERVER.md) | cluster users | SLURM script, sharding, offline flags |
 | [docs/USABILITY-TEST.md](docs/USABILITY-TEST.md) | maintainers | how to watch a newcomer use this and what to fix first |
 | [notebooks/ptq_colab.ipynb](notebooks/ptq_colab.ipynb) | people without a GPU | the two-minute demo on a free Colab GPU |
@@ -209,7 +210,9 @@ uv run ptq export-mlir --model facebook/opt-125m --bits 3 --algo hqq --no-mlir -
 ```
 
 `--model` is a `configs/models` key, a Hugging Face id or a local directory; `--algo` is
-`rtn` (default), `gptq`, `awq_lite` or `hqq` with the same options as `ptq eval`. Output:
+`rtn` (default), `gptq`, `awq_lite` or `hqq` with the same options as `ptq eval`. For the
+vault compiler, [docs/HANDOFF-FORMAT.md](docs/HANDOFF-FORMAT.md) is the contract: every
+file below, every function signature, the weight layout and the golden vectors. Output:
 
 | file | contents |
 |---|---|
@@ -218,6 +221,7 @@ uv run ptq export-mlir --model facebook/opt-125m --bits 3 --algo hqq --no-mlir -
 | `layers.json` | per quantized module: bits, group size, scheme, dequant op, storage dtype, `quant_min/max`, relative and max weight error, SNR, scale/zero ranges, codes used, `roundtrip_max_abs_diff` / `bitwise_equal_to_evaluated`, and with `--score-windows N` the relative output error `‖Q(W)x − Wx‖/‖Wx‖` on N windows |
 | `export.json` | the run's `quant_key`, quant and calibration fields, op counts, versions, provenance, and any `results/raw/runs` perplexity rows with the same `quant_key` |
 | `<piece>_<i>.mlir` | with `--slice block\|attention\|mlp --block-index i`: that piece of block `i` alone, as a function of the hidden states it receives on a real text sample (captured by forward hooks; rotary tables, position ids and masks frozen in as constants); replaces `model.mlir` |
+| `prefill.mlir`, `prefill_kv.mlir`, `decode.mlir` | with `--stages`: the three generation stages as separate functions with a static KV cache (`[layers, 1, kv_heads, --max-cache-len, head_dim]`) passed in and out explicitly, every shape static, checked against the eager model over prefill + prefill-KV + four decode steps on real text; one `weights.bin` serves all three with `--weights external` |
 | `weights.bin`, `weights.json` | with `--weights external`: the `.mlir` becomes graph-only (weights are function arguments, no `dense_resource`), the bytes go to `weights.bin` with every tensor 64-byte aligned and sub-byte codes packed two-per-byte (4-bit; LSB-first bit stream per row, defined in `docs/EXPORT-MLIR.md`), and `weights.json` lists each tensor's name, role (codes/scale/zero/g_idx/bias/float/int), shape, dtype, bits, group size, scheme, offset, length and packing, plus each function's argument order |
 | `golden/` | with `--golden`: per exported function, a real seeded input (WikiText-2 tokens, `--golden-dataset`, `--golden-seed`) and the output PyTorch produces, each as `.npy` and raw little-endian `.bin`, plus `index.json` (name, shape, dtype, byte length, SHA-256) and the comparison tolerance derived from a float64 rerun of the same function on the same weights (`docs/EXPORT-MLIR.md`) |
 

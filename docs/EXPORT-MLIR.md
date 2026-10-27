@@ -112,11 +112,11 @@ compiler) needs a known input and the answer the real model gives for it. `--gol
 writes exactly that under `golden/`:
 
 ```
-golden/index.json            what every tensor is, where it came from, and the tolerance
-golden/main/input_ids.npy    the input, numpy format (shape and dtype inside)
-golden/main/input_ids.bin    the same bytes raw: little-endian, row-major, no header
-golden/main/logits.npy       the output PyTorch produced for that input
-golden/main/logits.bin
+golden/index.json                   what every tensor is, where it came from, and the tolerance
+golden/main/inputs/input_ids.npy    the input, numpy format (shape and dtype inside)
+golden/main/inputs/input_ids.bin    the same bytes raw: little-endian, row-major, no header
+golden/main/outputs/logits.npy      the output PyTorch produced for that input
+golden/main/outputs/logits.bin
 ```
 
 - **The input is real text, never random numbers.** It is the first `--seqlen` tokens of
@@ -222,6 +222,56 @@ and loses the name mapping.
 
 **Checked:** `tests/test_export_weights.py` rebuilds a model from `weights.bin` and
 `weights.json` alone and gets the golden logits back bit for bit.
+
+## Prefill, prefill-KV and decode: `--stages`
+
+Text generation runs a model in three ways: the whole prompt at once (**prefill**), more
+prompt on top of a saved history (**prefill-KV**), and one token at a time (**decode**).
+`--stages` exports each as its own function, with the key/value cache passed in and out
+as plain tensors, following the three-module split of arXiv 2607.15865:
+
+```bash
+uv run ptq export-mlir --model smollm2-135m --bits 4 --group-size 64 \
+    --stages --max-cache-len 256 --golden --weights external --output-type both --out exports/smollm2-stages
+```
+
+| function | inputs | outputs |
+|---|---|---|
+| `prefill` | `input_ids [1, S]` int64 | `logits [1, S, V]`, `k_cache`, `v_cache` |
+| `prefill_kv` | `input_ids [1, S2]`, `k_cache`, `v_cache`, `position` | `logits [1, S2, V]`, `k_cache`, `v_cache` |
+| `decode` | `input_ids [1, 1]`, `k_cache`, `v_cache`, `position` | `logits [1, 1, V]`, `k_cache`, `v_cache` |
+
+- `k_cache` and `v_cache` are `[layers, 1, kv_heads, max_cache_len, head_dim]` in the
+  model's dtype (SmolLM2: `[30, 1, 3, 256, 64]` float32 on the CPU). `position` is a 0-d
+  int64 tensor: how many tokens are already in the cache, which is also the position of
+  the first new token. A consumer keeps `position + new tokens <= max_cache_len`.
+- Every shape is static: `S` is `--seqlen` (default 128), `S2` is `--prefill-kv-seqlen`
+  (default 16), `max_cache_len` is `--max-cache-len` (default 256). `prefill_kv` and
+  `decode` are the same `nn.Module` traced at two input lengths.
+- Files: `prefill.mlir`, `prefill_kv.mlir`, `decode.mlir` (plus `.linalg.mlir` forms);
+  with `--weights external` one `weights.bin` serves all three, and `weights.json`
+  records each function's argument order separately.
+- **Checked against the real model.** The export runs prefill, then prefill-KV, then
+  four decode steps on a real text window (each decode step fed the true next token),
+  through the exact modules that were exported, and compares every logit with the
+  eager model run once over the whole window without a cache. The tolerance is the
+  golden one for the prefill logits (8 × the measured fp32-vs-float64 distance); the
+  export fails if any step exceeds it, and `export.json` records every step under
+  `stages.check`.
+- With `--golden`, each stage gets its own golden case; the caches `prefill_kv` and
+  `decode` are given are the real outputs of the previous stage.
+
+How the cache became explicit: transformers 5.17 has `StaticCache`, whose layers update
+preallocated tensors in place with `index_copy_`, and an ExecuTorch recipe that exports
+those tensors as mutated buffers. Neither gives a function with the cache as inputs and
+outputs, and the in-place copy lowers to `tm_tensor.scatter`, which a plain `mlir-opt`
+cannot read. The export subclasses `StaticLayer` with an out-of-place update (gather the
+new keys into place, merge with `where`), inherits the static-cache mask logic
+unchanged, and turns `use_cache` on only inside the exported function; the evaluation
+loader's `use_cache=False` is untouched. Llama-family models work as is; OPT needs its
+position ids and an all-ones mask passed explicitly (its own derivation is
+data-dependent and torch.export refuses it), which the export does. Models with
+sliding-window layers are refused.
 
 ## The lowered form: `--output-type linalg`
 

@@ -277,6 +277,7 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         explicit_positions=args.explicit_positions, score_windows=args.score_windows,
         golden=args.golden, golden_dataset=args.golden_dataset, golden_seed=args.golden_seed,
         slice=args.slice, block_index=args.block_index, weights=args.weights,
+        stages=args.stages, max_cache_len=args.max_cache_len, prefill_kv_seqlen=args.prefill_kv_seqlen,
         score_dataset=args.score_dataset, score_seqlen=args.score_seqlen, score_seed=args.seed,
         eval_mode=args.eval_mode, deterministic=args.deterministic,
     )
@@ -295,6 +296,19 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         sl = m["slice"]
         print(_fmt("slice", f"{sl['function']}: {sl['input_shape']} -> {sl['output_shape']} {sl['dtype']}, "
                             f"{len(sl['quantized_modules'])} quantized modules"))
+    if m["stages"]:
+        st = m["stages"]
+        for name, sig in st["signatures"].items():
+            ins = ", ".join(f"{e['name']}{e['shape']}" for e in sig["inputs"])
+            outs = ", ".join(f"{e['name']}{e['shape']}" for e in sig["outputs"])
+            print(_fmt(f"stage {name}", f"({ins}) -> ({outs})"))
+        chk = st["check"]
+        tol = chk["tolerance"]
+        verdict = "not measured" if tol is None else ("OK" if chk["all_within_tolerance"] else "FAILED")
+        print(_fmt("stage check", f"max|diff| vs eager {chk['max_abs_diff']:.3g} at {chk['worst']}"
+                                  + (f" (atol {tol['atol']:.3g})" if tol else "") + f" over {chk['decode_steps']} decode steps: {verdict}"))
+        for name, path in result.stage_paths.items():
+            print(_fmt(f"mlir {name}", path))
     if result.mlir_path:
         print(_fmt("mlir", f"{result.mlir_path} ({m['mlir']['mlir_bytes'] / 1024**2:.1f} MB)"))
     if result.linalg_path:
@@ -458,6 +472,13 @@ def build_parser() -> argparse.ArgumentParser:
              "state the piece receives on a real text sample (chosen like the golden input)",
     )
     p_exp.add_argument("--block-index", type=int, default=0, help="which decoder block --slice cuts from")
+    p_exp.add_argument(
+        "--stages", action="store_true",
+        help="export prefill, prefill_kv and decode as three functions with an explicit static KV cache "
+             "(prefill.mlir, prefill_kv.mlir, decode.mlir), checked against the eager model",
+    )
+    p_exp.add_argument("--max-cache-len", type=int, default=256, help="static KV cache length for --stages")
+    p_exp.add_argument("--prefill-kv-seqlen", type=int, default=16, help="tokens of the second prompt chunk prefill_kv is exported with")
     p_exp.add_argument(
         "--weights", default="embedded", choices=["embedded", "external"],
         help="embedded: weights inside the .mlir as dense resources (default); external: a graph-only .mlir "
