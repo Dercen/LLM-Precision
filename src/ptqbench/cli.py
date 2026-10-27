@@ -273,7 +273,8 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
     run = build_run(model, quant, calib, dtype=args.dtype)
     options = ExportOptions(
         representation=args.repr, seqlen=args.seqlen, dynamic_seqlen=args.dynamic_seqlen,
-        write_mlir=not args.no_mlir, bytecode=args.bytecode, score_windows=args.score_windows,
+        write_mlir=not args.no_mlir, bytecode=args.bytecode, output_type=args.output_type,
+        explicit_positions=args.explicit_positions, score_windows=args.score_windows,
         score_dataset=args.score_dataset, score_seqlen=args.score_seqlen, score_seed=args.seed,
         eval_mode=args.eval_mode, deterministic=args.deterministic,
     )
@@ -290,6 +291,8 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
     print(_fmt("bitwise = evaluated", m["summary"]["all_bitwise_equal_to_evaluated"]))
     if result.mlir_path:
         print(_fmt("mlir", f"{result.mlir_path} ({m['mlir']['mlir_bytes'] / 1024**2:.1f} MB)"))
+    if result.linalg_path:
+        print(_fmt("mlir (linalg)", f"{result.linalg_path} ({m['mlir']['linalg_bytes'] / 1024**2:.1f} MB)"))
     print(_fmt("layers", result.layers_path))
     print(_fmt("manifest", result.manifest_path))
     for note in result.notes:
@@ -418,7 +421,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_exp.add_argument("--seqlen", type=int, default=128, help="example sequence length for torch.export")
     p_exp.add_argument("--dynamic-seqlen", action="store_true", help="export with a symbolic sequence length")
-    p_exp.add_argument("--bytecode", action="store_true", help="also write model.mlirbc")
+    p_exp.add_argument(
+        "--output-type", default="raw", choices=["raw", "linalg", "both"],
+        help="raw torch dialect (default; keeps the quantized ops), linalg-on-tensors (model.linalg.mlir), or both",
+    )
+    p_exp.add_argument(
+        "--explicit-positions", action="store_true",
+        help="pass position ids and an all-ones mask to the model instead of letting it derive them with a "
+             "cumsum (which lowers to tm_tensor.scan, unreadable by a stock mlir-opt)",
+    )
+    p_exp.add_argument("--bytecode", action="store_true", help="also write model.mlirbc (and model.linalg.mlirbc)")
     p_exp.add_argument("--no-mlir", action="store_true", help="skip the .mlir file (nn.Module round trip and JSON only)")
     p_exp.add_argument("--score-windows", type=int, default=0, help="windows for per-layer output error (0 = off)")
     p_exp.add_argument("--score-dataset", default="wikitext2")

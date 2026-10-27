@@ -99,9 +99,43 @@ Other switches you may want:
 |---|---|
 | `--model facebook/opt-350m` | any Hugging Face model id, or a local folder, not only the configured keys |
 | `--no-mlir` | skip the big `.mlir` file; just the JSON and the check |
+| `--output-type linalg` or `both` | also (or only) write `model.linalg.mlir`, the lowered form; see below |
+| `--explicit-positions` | pass the token positions to the model instead of letting it compute them; needed for a lowered file that a plain `mlir-opt` can read; see below |
 | `--bytecode` | also write `model.mlirbc`, a compact binary version |
 | `--dynamic-seqlen` | let the exported model accept any input length |
 | `--device cpu` | run on the CPU even if a GPU is present (put it before `export-mlir`) |
+
+## The lowered form: `--output-type linalg`
+
+`model.mlir` is the model in torch-mlir's *torch dialect*: one op per PyTorch operation,
+with the integer-to-float conversion of every quantized layer kept as a single
+`quantized_decomposed.dequantize_per_channel_group` op. A compiler usually wants the next
+level down, **linalg-on-tensors**: matrix multiplies as `linalg.matmul`, everything else as
+loops over tensors (`linalg.generic`), with plain `arith` and `math` ops inside. That is
+what `--output-type linalg` writes to `model.linalg.mlir`; `--output-type both` writes
+both files from the same export:
+
+```bash
+uv run ptq export-mlir --model smollm2-135m --bits 4 --group-size 64 \
+    --output-type both --explicit-positions --out exports/smollm2-rtn4-g64
+```
+
+Three things to know about the lowered file:
+
+- **It is checked before it is written.** The MLIR verifier must accept it, it must contain
+  linalg ops, and no torch-dialect op may be left. `export.json` lists the linalg op counts
+  under `mlir.linalg_ops`.
+- **Dequantization is no longer visible as such.** After lowering, "take the 4-bit code,
+  subtract the zero-point, multiply by the scale" is just integer-to-float arithmetic
+  (`arith.extui`, `arith.sitofp`, `arith.subf`, `arith.mulf`) inside a `linalg.generic`.
+  The codes are an `i8` tensor like any other. Only `model.mlir` and `layers.json` still
+  say which tensors are 4-bit and how they are grouped.
+- **Use `--explicit-positions` for a file other tools can read.** Without it, the model
+  computes its token positions with a running sum (`cumsum`), which lowers to
+  `tm_tensor.scan`, an op from torch-mlir's own private dialect: `torch-mlir-opt` reads it,
+  a plain `mlir-opt` does not, and `export.json` adds a note when it is present. With
+  `--explicit-positions` the positions `0..S-1` and an all-ones attention mask are passed
+  in, the model is unchanged, and the lowered file contains only standard dialects.
 
 ## Step 6: Clean up
 

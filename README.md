@@ -214,13 +214,23 @@ uv run ptq export-mlir --model facebook/opt-125m --bits 3 --algo hqq --no-mlir -
 | file | contents |
 |---|---|
 | `model.mlir` | raw torch dialect, `func.func @main(%input_ids)`, weights embedded as dense resources (`--bytecode` adds `model.mlirbc`; `--dynamic-seqlen` makes the sequence length symbolic) |
+| `model.linalg.mlir` | with `--output-type linalg` or `both`: the same function lowered by torch-mlir's backend pipeline to linalg-on-tensors (linalg, arith, tensor, math on static tensors). Verified: at least one linalg op, no torch-dialect op left. Dequantization is now plain integer-to-float arithmetic (`extui`, `sitofp`, `subf`, `mulf`), so the raw form is the only one that still says "this weight is 4-bit" |
 | `layers.json` | per quantized module: bits, group size, scheme, dequant op, storage dtype, `quant_min/max`, relative and max weight error, SNR, scale/zero ranges, codes used, `roundtrip_max_abs_diff` / `bitwise_equal_to_evaluated`, and with `--score-windows N` the relative output error `‖Q(W)x − Wx‖/‖Wx‖` on N windows |
 | `export.json` | the run's `quant_key`, quant and calibration fields, op counts, versions, provenance, and any `results/raw/runs` perplexity rows with the same `quant_key` |
 
 From Python: `ptqbench.export.export_quantized(run, out_dir, device=..., options=ExportOptions(...))`
 returns the module (`result.model`) and the records. `uv run torch-mlir-opt` is not shipped;
-a consumer continues with `torch-match-quantized-custom-ops` and
-`torchdynamo-export-to-torch-backend-pipeline`, which the test runs through to linalg.
+`--output-type both` runs the same `torch-match-quantized-custom-ops`,
+`torchdynamo-export-to-torch-backend-pipeline` and linalg backend pipeline in process.
+
+A whole-model graph exported as plain `model(input_ids)` carries one `cumsum` (OPT derives
+its position ids from the attention mask; Llama's mask builder checks the position ids for
+packed sequences), which lowers to `tm_tensor.scan`, an op of torch-mlir's private dialect
+that a stock `mlir-opt` cannot parse. `--explicit-positions` exports
+`model(input_ids, position_ids=0..S-1, attention_mask=ones)` instead, the same model with
+no cumsum; `export.json` counts any `tm_tensor` ops under `mlir.tm_tensor_ops` and adds a
+note when there are some. The import goes through torch-mlir's `import_program`, which also
+binds non-persistent buffers (Llama's rotary `inv_freq`), so Llama-family models export.
 
 **What maps onto torch-mlir's quantized-op support, and what does not** (torch-mlir
 20260930.892, torch 2.14):

@@ -42,6 +42,14 @@ class ExportOptions:
     dynamic_seqlen: bool = False
     write_mlir: bool = True
     bytecode: bool = False
+    #: Which MLIR forms to write: `raw` (torch dialect, the default and the only form that
+    #: still shows the quantized ops), `linalg` (lowered to linalg-on-tensors), or `both`.
+    output_type: str = "raw"
+    #: Export `main` as `model(input_ids, position_ids=0..S-1, attention_mask=ones)` instead
+    #: of `model(input_ids)`. The model then does not derive positions with a `cumsum`,
+    #: which lowers to `tm_tensor.scan`, an op a stock `mlir-opt` cannot parse. Off by
+    #: default so the default raw graph is unchanged.
+    explicit_positions: bool = False
     #: Windows of `score_dataset` on which each layer's output is compared with the
     #: output its pre-rounding weight gives on the same input; 0 disables scoring.
     score_windows: int = 0
@@ -63,6 +71,7 @@ class ExportResult:
     layers_path: Path
     manifest_path: Path
     mlir_path: Path | None = None
+    linalg_path: Path | None = None
     notes: list[str] = field(default_factory=list)
 
 
@@ -131,29 +140,93 @@ def export_quantized(
     if any(m.zero_point_domain == "float" for m in modules.values()):
         notes.append("hqq zero-points are floats: those layers use explicit ATen dequantization")
 
-    mlir_path = None
+    mlir_files: dict[str, str | None] = {}
     mlir_stats: dict[str, Any] = {}
     if options.write_mlir:
         model.to("cpu")
         example = _example_input_ids(loaded, options.seqlen)
-        max_seqlen = getattr(model.config, "max_position_embeddings", None)
-        module, mlir_stats = mlir_mod.export_torch_dialect(
-            model, example, dynamic_seqlen=options.dynamic_seqlen, max_seqlen=max_seqlen
-        )
-        mlir_path = mlir_mod.write_module(module, out_dir / "model.mlir")
-        if options.bytecode:
-            mlir_mod.write_module(module, out_dir / "model.mlirbc", bytecode=True)
-        mlir_stats["ops"] = _count_ops(module)
-        mlir_stats["mlir_bytes"] = mlir_path.stat().st_size
-        del module
+        mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options)
+        if (note := tm_tensor_note(mlir_stats, "model")) is not None:
+            notes.append(note)
 
-    manifest = _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_path, mlir_stats, numerics, notes, time.perf_counter() - started)
+    manifest = _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, numerics, notes, time.perf_counter() - started)
     layers_path = _write_json(out_dir / "layers.json", layers)
     manifest_path = _write_json(out_dir / "export.json", manifest)
     return ExportResult(
         model=model, records=recorder.records, modules=modules, layers=layers, manifest=manifest,
-        out_dir=out_dir, layers_path=layers_path, manifest_path=manifest_path, mlir_path=mlir_path, notes=notes,
+        out_dir=out_dir, layers_path=layers_path, manifest_path=manifest_path,
+        mlir_path=_file_path(out_dir, mlir_files.get("mlir")),
+        linalg_path=_file_path(out_dir, mlir_files.get("mlir_linalg")),
+        notes=notes,
     )
+
+
+#: Stem of the whole-model MLIR files: `model.mlir`, `model.linalg.mlir`, `model.mlirbc`.
+WHOLE_MODEL_STEM = "model"
+#: The whole-model function's name inside the MLIR module.
+WHOLE_MODEL_FUNC = "main"
+
+
+class ExplicitPositions(nn.Module):
+    """`model(input_ids)` with the position ids and attention mask passed in, not derived.
+
+    transformers derives them inside the forward when they are absent: OPT takes a
+    `cumsum` over an all-ones mask to get position ids, and Llama's mask builder runs a
+    `cumsum` over the position ids to detect packed sequences. Under torch.export that
+    `cumsum` stays in the graph and lowers to `tm_tensor.scan`. Passing positions
+    `0..S-1` and an all-ones mask skips both, and the result is the same model: the
+    mask is materialised as the plain causal pattern (the probe `tests/test_export_linalg.py`
+    pins the absence of tm_tensor ops and the equality of the logits).
+    """
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+
+    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        seqlen = input_ids.shape[1]
+        position_ids = torch.arange(seqlen, device=input_ids.device).unsqueeze(0)
+        attention_mask = torch.ones(input_ids.shape, dtype=torch.long, device=input_ids.device)
+        return self.model(input_ids=input_ids, position_ids=position_ids, attention_mask=attention_mask).logits
+
+
+def whole_model_function(model: nn.Module, options: ExportOptions) -> nn.Module:
+    """The module `main` is exported from: the model itself, or its explicit-positions wrapper."""
+    return ExplicitPositions(model) if options.explicit_positions else model
+
+
+def _export_whole_model(
+    model: nn.Module, example: torch.Tensor, out_dir: Path, options: ExportOptions
+) -> tuple[dict[str, str | None], dict[str, Any]]:
+    """`main(%input_ids)` for the whole model, in the forms `options.output_type` asks for."""
+    max_seqlen = getattr(model.config, "max_position_embeddings", None)
+    dynamic_shapes = mlir_mod.seqlen_dynamic_shapes(example, max_seqlen) if options.dynamic_seqlen else None
+    imported = mlir_mod.import_function(
+        whole_model_function(model, options), (example,), func_name=WHOLE_MODEL_FUNC,
+        dynamic_shapes=dynamic_shapes, import_symbolic_shape_expressions=options.dynamic_seqlen,
+    )
+    files, stats = mlir_mod.write_forms(
+        imported, out_dir, WHOLE_MODEL_STEM, output_type=options.output_type, bytecode=options.bytecode
+    )
+    stats["dynamic_seqlen"] = options.dynamic_seqlen
+    stats["explicit_positions"] = options.explicit_positions
+    return files, stats
+
+
+def tm_tensor_note(stats: dict[str, Any], what: str) -> str | None:
+    """The `notes` line for a lowered form that kept tm_tensor ops, or None."""
+    ops = stats.get("tm_tensor_ops")
+    if not ops:
+        return None
+    return (
+        f"{what}: the linalg form contains {', '.join(f'{k} x{v}' for k, v in ops.items())}; "
+        "torch-mlir's own tools accept tm_tensor, a stock mlir-opt does not (--explicit-positions removes "
+        "the cumsum behind tm_tensor.scan)"
+    )
+
+
+def _file_path(out_dir: Path, name: str | None) -> Path | None:
+    return out_dir / name if name else None
 
 
 # ---- quantization dispatch (mirrors runner/execute.prepare, plus record=) --------------
@@ -296,20 +369,6 @@ def _example_input_ids(loaded: ml.LoadedModel, seqlen: int) -> torch.Tensor:
     return torch.full((1, seqlen), fill, dtype=torch.int64)
 
 
-def _count_ops(module: Any) -> dict[str, int]:
-    counts: dict[str, int] = {}
-
-    def walk(op):
-        counts[op.name] = counts.get(op.name, 0) + 1
-        for region in op.regions:
-            for block in region.blocks:
-                for inner in block.operations:
-                    walk(inner.operation)
-
-    walk(module.operation)
-    return {k: v for k, v in sorted(counts.items()) if k.startswith(("torch.quantized_decomposed", "torch.operator", "torch.aten.index_select", "torch.aten.mm", "torch.aten.linear"))}
-
-
 def _matching_rows(quant_key: str) -> list[dict[str, Any]]:
     """Perplexity rows the benchmark already holds for exactly these quantized weights."""
     rows = []
@@ -323,9 +382,14 @@ def _matching_rows(quant_key: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_path, mlir_stats, numerics, notes, seconds) -> dict[str, Any]:
+def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, numerics, notes, seconds) -> dict[str, Any]:
     rel = [v["rel_error"] for v in layers.values()]
     out_rel = [v["output_rel_error"] for v in layers.values() if v.get("output_rel_error") is not None]
+    files: dict[str, Any] = {
+        "layers": "layers.json",
+        "mlir": None, "mlir_bytecode": None, "mlir_linalg": None, "mlir_linalg_bytecode": None,
+        **mlir_files,
+    }
     return {
         "format_version": FORMAT_VERSION,
         "model": run.model.canonical_repo,
@@ -342,12 +406,8 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
         "representation": options.representation,
         "dequant_ops_used": sorted({m.dequant_op for m in modules.values()}),
         "schemes_used": sorted({m.scheme for m in modules.values()}),
-        "files": {
-            "layers": "layers.json",
-            "mlir": mlir_path.name if mlir_path else None,
-            "mlir_bytecode": "model.mlirbc" if (mlir_path and options.bytecode) else None,
-        },
-        "mlir": {"example_seqlen": options.seqlen, **mlir_stats} if mlir_path else None,
+        "files": files,
+        "mlir": {"example_seqlen": options.seqlen, **mlir_stats} if mlir_stats else None,
         "summary": {
             "mean_rel_error": sum(rel) / len(rel) if rel else None,
             "max_rel_error": max(rel) if rel else None,

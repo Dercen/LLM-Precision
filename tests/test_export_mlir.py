@@ -14,37 +14,16 @@ import json
 
 import pytest
 import torch
-from transformers import OPTConfig, OPTForCausalLM, PreTrainedTokenizerFast
 
 from ptqbench.export import QuantizedLinear, swap_in_quantized
 from ptqbench.export import mlir as M
 from ptqbench.models import families
 from ptqbench.quantizers import fakequant as fq
 from ptqbench.quantizers import gptq, rtn
+from tests.tiny_models import VOCAB, tiny_opt, tiny_tokenizer
 
 pytestmark = pytest.mark.smoke
 CPU = torch.device("cpu")
-VOCAB = 256
-
-
-def tiny_opt() -> OPTForCausalLM:
-    torch.manual_seed(0)
-    cfg = OPTConfig(
-        vocab_size=VOCAB, hidden_size=64, ffn_dim=128, num_hidden_layers=2, num_attention_heads=4,
-        max_position_embeddings=64, word_embed_proj_dim=64, bos_token_id=1, eos_token_id=2, pad_token_id=0,
-    )
-    model = OPTForCausalLM(cfg).eval()
-    model.config.use_cache = False
-    return model
-
-
-def tiny_tokenizer() -> PreTrainedTokenizerFast:
-    from tokenizers import Tokenizer, models, pre_tokenizers
-
-    vocab = {"<pad>": 0, "</s>": 1, "<unk>": 2, **{f"w{i}": i for i in range(3, VOCAB)}}
-    tok = Tokenizer(models.WordLevel(vocab, unk_token="<unk>"))
-    tok.pre_tokenizer = pre_tokenizers.Whitespace()
-    return PreTrainedTokenizerFast(tokenizer_object=tok, unk_token="<unk>", pad_token="<pad>", bos_token="</s>", eos_token="</s>")
 
 
 @pytest.fixture(scope="module")
