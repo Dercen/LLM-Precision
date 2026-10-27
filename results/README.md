@@ -7,7 +7,8 @@ open **[by-model/](by-model/README.md)**.
 results/
 ├── README.md        ← this guide
 ├── by-model/        ← START HERE: one plain-language page per model, with charts
-├── plots/           ← the charts (PNG), two per model
+├── plots/           ← the charts (PNG): bit width, loss, size frontier, group size, sensitivity
+├── sensitivity/     ← per-layer sensitivity tables (`ptq sensitivity`), one .md and .csv per model
 ├── tables/          ← everything in two big tables, for spreadsheets and deep dives
 │   ├── summary.md       every number, grouped by model and dataset
 │   └── results.csv      one line per run, every column (open in Excel / LibreOffice / pandas)
@@ -37,6 +38,9 @@ So never edit `by-model/`, `tables/` or `plots/` by hand — the next rebuild ov
 | **grouping** | How many weights share one scale factor. *Per row*: a whole row of the weight matrix (thousands of weights) shares one. *Groups of 128* or *64*: every 128 or 64 weights get their own, which costs a little space but fits the numbers much better. In the raw data this is `group_size` (`-1` = per row). |
 | **dataset** | The text perplexity is measured on. `wikitext2` = Wikipedia articles, `c4_new` = web pages, `ptb_new` = 1980s Wall Street Journal sentences. These three are what published papers use, so our numbers can be checked against theirs. |
 | **published / paper** | The number a research paper reports for the same model, method and setting. Matching it to within ~1% shows the pipeline is correct. |
+| **bits per weight** | What one weight really costs in memory once its share of the scale factors and zero-points is counted: 4-bit with groups of 128 is 4.16, with groups of 32 it is 4.63, per row it is 4.00. Smaller groups buy accuracy with these extra bits. |
+| **weights (MB)** | The whole model's weights in that packed form, with everything that is not a quantized layer (embeddings, norms, biases) still at 16 bits. This is what the memory of an accelerator has to hold. |
+| **sensitivity** | How much one layer's output moves when its weights are quantized, measured on real text (`output_rel_error`: 0.05 = moved by 5%). A layer far above its neighbours needs more bits than they do. The `sensitivity/` tables and the heatmap show it block by block and projection by projection. |
 
 The four methods, simplest first:
 

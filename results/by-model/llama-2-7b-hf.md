@@ -14,19 +14,25 @@ badly damaged. See `results/README.md` for the method and grouping terms.
 |---|---|
 | WikiText-2 (Wikipedia articles) | 5.4721 |
 
+Its weights take 13,477 MB at 16 bits. The sizes below count the packed format: the
+codes plus one scale and one zero-point per group, with everything that is not a quantized
+layer (embeddings, norms, biases) still at 16 bits. *Bits per weight* is that cost per weight.
+
 ## Best result at each bit width, on WikiText-2 (Wikipedia articles)
 
-| bits | best method | grouping | perplexity | vs full precision |
-|---|---|---|---|---|
-| 4 | GPTQ | groups of 128 | 5.6346 | +3.0% |
-| 3 | AWQ-lite | groups of 128 | 6.3328 | +15.7% |
-| 2 | GPTQ | groups of 64 | 26.7500 | 4.9× worse |
+| bits | best method | grouping | perplexity | vs full precision | bits per weight | weights (MB) |
+|---|---|---|---|---|---|---|
+| 4 | GPTQ | groups of 128 | 5.6346 | +3.0% | 4.16 | 3,892 |
+| 3 | AWQ-lite | groups of 128 | 6.3328 | +15.7% | 3.15 | 3,073 |
+| 2 | GPTQ | groups of 64 | 26.7500 | 4.9× worse | 2.28 | 2,374 |
 
 ## Charts
 
 ![Perplexity by bit width](../plots/llama-2-7b-hf_perplexity.png)
 
 ![Increase over full precision](../plots/llama-2-7b-hf_delta_vs_fp16.png)
+
+![Perplexity against model size](../plots/llama-2-7b-hf_frontier.png)
 
 ## Every result: WikiText-2 (Wikipedia articles)
 

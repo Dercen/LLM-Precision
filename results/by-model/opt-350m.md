@@ -16,20 +16,26 @@ badly damaged. See `results/README.md` for the method and grouping terms.
 | C4 (web pages) | 22.5896 |
 | PTB (1980s news sentences) | 31.0739 |
 
+Its weights take 662 MB at 16 bits. The sizes below count the packed format: the
+codes plus one scale and one zero-point per group, with everything that is not a quantized
+layer (embeddings, norms, biases) still at 16 bits. *Bits per weight* is that cost per weight.
+
 ## Best result at each bit width, on WikiText-2 (Wikipedia articles)
 
-| bits | best method | grouping | perplexity | vs full precision |
-|---|---|---|---|---|
-| 8 | HQQ | per row | 22.0107 | +0.0% |
-| 4 | GPTQ | groups of 128 | 23.2116 | +5.5% |
-| 3 | GPTQ | groups of 128 | 27.2601 | +23.9% |
-| 2 | GPTQ | groups of 64 | 202.74 | 9.2× worse |
+| bits | best method | grouping | perplexity | vs full precision | bits per weight | weights (MB) |
+|---|---|---|---|---|---|---|
+| 8 | HQQ | per row | 22.0107 | +0.0% | 8.02 | 361 |
+| 4 | GPTQ | groups of 128 | 23.2116 | +5.5% | 4.16 | 215 |
+| 3 | GPTQ | groups of 128 | 27.2601 | +23.9% | 3.15 | 177 |
+| 2 | GPTQ | groups of 64 | 202.74 | 9.2× worse | 2.28 | 145 |
 
 ## Charts
 
 ![Perplexity by bit width](../plots/opt-350m_perplexity.png)
 
 ![Increase over full precision](../plots/opt-350m_delta_vs_fp16.png)
+
+![Perplexity against model size](../plots/opt-350m_frontier.png)
 
 ## Every result: WikiText-2 (Wikipedia articles)
 

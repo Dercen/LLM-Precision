@@ -16,17 +16,21 @@ badly damaged. See `results/README.md` for the method and grouping terms.
 | C4 (web pages) | 12.7121 |
 | PTB (1980s news sentences) | 15.7699 |
 
+Its weights take 13,317 MB at 16 bits. The sizes below count the packed format: the
+codes plus one scale and one zero-point per group, with everything that is not a quantized
+layer (embeddings, norms, biases) still at 16 bits. *Bits per weight* is that cost per weight.
+
 ## Best result at each bit width, on WikiText-2 (Wikipedia articles)
 
-| bits | best method | grouping | perplexity | vs full precision |
-|---|---|---|---|---|
-| 4 | GPTQ | per row | 11.4774 | +5.7% |
+| bits | best method | grouping | perplexity | vs full precision | bits per weight | weights (MB) |
+|---|---|---|---|---|---|---|
+| 4 | GPTQ | per row | 11.4774 | +5.7% | 4.00 | 3,656 |
 
 ## Charts
 
-![Perplexity by bit width](../plots/opt-6.7b_perplexity.png)
-
 ![Increase over full precision](../plots/opt-6.7b_delta_vs_fp16.png)
+
+![Perplexity against model size](../plots/opt-6.7b_frontier.png)
 
 ## Every result: WikiText-2 (Wikipedia articles)
 

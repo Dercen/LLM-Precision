@@ -155,5 +155,203 @@
       }
     },
     "derived_at": "2026-09-22T03:18:55"
+  },
+  "zachlaptop": {
+    "entries": {
+      "HuggingFaceTB/SmolLM2-135M|torch.float16|resident": {
+        "seconds_per_window": 0.0327,
+        "windows_measured": 18083,
+        "rows": 121,
+        "peak_vram_gb": 0.355,
+        "source": "derived"
+      },
+      "facebook/opt-350m|torch.float16|resident": {
+        "seconds_per_window": 0.0513,
+        "windows_measured": 13290,
+        "rows": 90,
+        "peak_vram_gb": 0.725,
+        "source": "derived"
+      },
+      "facebook/opt-125m|torch.float16|resident": {
+        "seconds_per_window": 0.0232,
+        "windows_measured": 22110,
+        "rows": 153,
+        "peak_vram_gb": 0.349,
+        "source": "derived"
+      },
+      "facebook/opt-2.7b|torch.float16|resident": {
+        "seconds_per_window": 0.2983,
+        "windows_measured": 13290,
+        "rows": 90,
+        "peak_vram_gb": 5.065,
+        "source": "derived"
+      },
+      "meta-llama/Llama-3.1-8B|torch.bfloat16|streamed": {
+        "seconds_per_window": 1.4811,
+        "windows_measured": 1551,
+        "rows": 11,
+        "peak_vram_gb": 3.599,
+        "source": "derived"
+      },
+      "meta-llama/Llama-2-7b-hf|torch.float16|streamed": {
+        "seconds_per_window": 1.0434,
+        "windows_measured": 2490,
+        "rows": 15,
+        "peak_vram_gb": 2.066,
+        "source": "derived"
+      },
+      "facebook/opt-1.3b|torch.float16|resident": {
+        "seconds_per_window": 0.1575,
+        "windows_measured": 13290,
+        "rows": 90,
+        "peak_vram_gb": 2.564,
+        "source": "derived"
+      },
+      "facebook/opt-6.7b|torch.float16|streamed": {
+        "seconds_per_window": 0.9363,
+        "windows_measured": 1329,
+        "rows": 9,
+        "peak_vram_gb": 1.954,
+        "source": "derived"
+      }
+    },
+    "quantization": {
+      "facebook/opt-350m|gptq": {
+        "quant_seconds": 55.1,
+        "n_configs": 9,
+        "min": 54.5,
+        "max": 55.4,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 55.1
+      },
+      "HuggingFaceTB/SmolLM2-135M|gptq": {
+        "quant_seconds": 25.1,
+        "n_configs": 20,
+        "min": 23.7,
+        "max": 27.4,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 25.1
+      },
+      "HuggingFaceTB/SmolLM2-135M|awq_lite": {
+        "quant_seconds": 21.8,
+        "n_configs": 10,
+        "min": 15.1,
+        "max": 33.1,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 21.8
+      },
+      "facebook/opt-2.7b|gptq": {
+        "quant_seconds": 342.3,
+        "n_configs": 9,
+        "min": 341.0,
+        "max": 343.2,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 342.3
+      },
+      "meta-llama/Llama-3.1-8B|gptq": {
+        "quant_seconds": 952.5,
+        "n_configs": 6,
+        "min": 849.9,
+        "max": 1601.8,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 952.5
+      },
+      "facebook/opt-2.7b|awq_lite": {
+        "quant_seconds": 376.4,
+        "n_configs": 2,
+        "min": 375.6,
+        "max": 377.2,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 376.4
+      },
+      "facebook/opt-1.3b|gptq": {
+        "quant_seconds": 171.7,
+        "n_configs": 9,
+        "min": 170.7,
+        "max": 173.9,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 171.7
+      },
+      "facebook/opt-125m|gptq": {
+        "quant_seconds": 16.7,
+        "n_configs": 26,
+        "min": 16.4,
+        "max": 17.2,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 16.7
+      },
+      "facebook/opt-125m|awq_lite": {
+        "quant_seconds": 12.8,
+        "n_configs": 14,
+        "min": 9.8,
+        "max": 23.4,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 12.8
+      },
+      "facebook/opt-350m|awq_lite": {
+        "quant_seconds": 32.4,
+        "n_configs": 2,
+        "min": 32.3,
+        "max": 32.5,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 32.4
+      },
+      "meta-llama/Llama-2-7b-hf|gptq": {
+        "quant_seconds": 720.2,
+        "n_configs": 6,
+        "min": 713.7,
+        "max": 726.0,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 720.2
+      },
+      "facebook/opt-1.3b|awq_lite": {
+        "quant_seconds": 176.7,
+        "n_configs": 2,
+        "min": 176.1,
+        "max": 177.3,
+        "source": "derived",
+        "mode": "resident",
+        "quant_seconds_resident": 176.7
+      },
+      "facebook/opt-6.7b|gptq": {
+        "quant_seconds": 856.6,
+        "n_configs": 1,
+        "min": 856.6,
+        "max": 856.6,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 856.6
+      },
+      "meta-llama/Llama-3.1-8B|awq_lite": {
+        "quant_seconds": 1354.8,
+        "n_configs": 2,
+        "min": 1090.7,
+        "max": 1618.9,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 1354.8
+      },
+      "meta-llama/Llama-2-7b-hf|awq_lite": {
+        "quant_seconds": 998.0,
+        "n_configs": 2,
+        "min": 995.9,
+        "max": 1000.0,
+        "source": "derived",
+        "mode": "streamed",
+        "quant_seconds_resident": 998.0
+      }
+    },
+    "derived_at": "2026-10-27T08:40:12"
   }
 }

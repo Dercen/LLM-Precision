@@ -1,0 +1,14 @@
+# The group-size sweep on the OPT family's smallest model: every group size that divides
+# both its hidden size (768) and its MLP width (3072), from per-row down to 32, at 4/3/2
+# bits. See groupsize_smollm2.yaml. The per-row, g128 and 2-bit g64 cells are shared with
+# resident_full.yaml and are not rerun.
+extends: base.yaml
+name: groupsize_opt125m
+models: [opt-125m]
+datasets: [wikitext2]
+grid:
+  - {algo: fp}
+  - {algo: rtn,      cells: [{bits: [4, 3, 2], group_size: [-1, 256, 192, 128, 96, 64, 48, 32]}]}
+  - {algo: gptq,     cells: [{bits: [4, 3, 2], group_size: [-1, 256, 192, 128, 96, 64, 48, 32]}]}
+  - {algo: hqq,      cells: [{bits: [4, 3, 2], group_size: [-1, 256, 192, 128, 96, 64, 48, 32]}]}
+  - {algo: awq_lite, cells: [{bits: [4, 3],    group_size: [256, 192, 128, 96, 64, 48, 32]}]}

@@ -1,0 +1,16 @@
+# Which grouping granularity is free? Every group size that divides both SmolLM2's hidden
+# size (576) and its MLP width (1536), from per-row down to 32, at 4/3/2 bits. Group size
+# is the granularity at which a weight tile must carry its scales, so this is a tiling
+# decision for the vault compiler as much as a quantization one. WikiText-2 only (the
+# paper-binding column); a cell is seconds on the laptop GPU. The per-row and g64 cells
+# are shared with resident_full.yaml and are not rerun.
+extends: base.yaml
+name: groupsize_smollm2
+models: [smollm2-135m]
+datasets: [wikitext2]
+grid:
+  - {algo: fp}
+  - {algo: rtn,      cells: [{bits: [4, 3, 2], group_size: [-1, 192, 96, 64, 48, 32]}]}
+  - {algo: gptq,     cells: [{bits: [4, 3, 2], group_size: [-1, 192, 96, 64, 48, 32]}]}
+  - {algo: hqq,      cells: [{bits: [4, 3, 2], group_size: [-1, 192, 96, 64, 48, 32]}]}
+  - {algo: awq_lite, cells: [{bits: [4, 3],    group_size: [192, 96, 64, 48, 32]}]}

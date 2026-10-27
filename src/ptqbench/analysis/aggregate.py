@@ -19,6 +19,7 @@ import pandas as pd
 import yaml
 
 from .. import explain, paths
+from . import footprint
 
 ROW_COLUMNS = [
     "run_id", "quant_key", "model", "loaded_from", "dataset", "algo", "bits", "group_size", "sym",
@@ -105,6 +106,7 @@ def build_table(rows: list[dict[str, Any]]) -> pd.DataFrame:
         for r in rows
         if r.get("algo") == "fp" and r.get("status") == "ok" and not r.get("partial")
     }
+    configs: dict[tuple[str, str | None], Any] = {}  # Hugging Face configs, one load per repo
     for row in rows:
         rec = {col: row.get(col) for col in ROW_COLUMNS}
         rec["group_size"] = _norm_gs(row.get("group_size"))
@@ -115,6 +117,8 @@ def build_table(rows: list[dict[str, Any]]) -> pd.DataFrame:
         rec["delta_vs_paper"] = None
         rec["delta_vs_paper_pct"] = None
         rec["delta_vs_fp16"] = None
+        rec["bits_per_weight"] = None
+        rec["weight_bytes"] = None
         if row.get("status") == "ok" and not row.get("partial"):
             matches = match_literature(row, lit_rows, calibs)
             # Prefer a row whose protocol is not uncertain; then the first listed.
@@ -131,6 +135,10 @@ def build_table(rows: list[dict[str, Any]]) -> pd.DataFrame:
             base = fp16.get((row["model"], row["dataset"]))
             if base is not None and row.get("algo") != "fp":
                 rec["delta_vs_fp16"] = row["ppl"] - base
+            size = footprint.row_footprint(row, configs)
+            if size is not None:
+                rec["bits_per_weight"] = size.bits_per_weight
+                rec["weight_bytes"] = size.weight_bytes
         records.append(rec)
     df = pd.DataFrame.from_records(records)
     if not df.empty:
@@ -198,6 +206,16 @@ def write_summary(df: pd.DataFrame, path: Path | None = None) -> Path:
 ALGO_NAMES = explain.ALGO_NAMES
 DATASET_NAMES = explain.DATASET_NAMES
 DATASET_ORDER = ["wikitext2", "c4_new", "ptb_new", "c4", "ptb"]
+#: Charts a model page embeds, in order, when `ptq plot` (or `ptq sensitivity`) has produced them.
+CHARTS = (
+    ("perplexity", "Perplexity by bit width"),
+    ("delta_vs_fp16", "Increase over full precision"),
+    ("frontier", "Perplexity against model size"),
+    ("groupsize", "Perplexity by group size"),
+    ("sensitivity", "Which layers tolerate fewer bits"),
+)
+#: results/<this>/<model>.md holds the per-layer tables `ptq sensitivity` writes.
+SENSITIVITY_DIRNAME = "sensitivity"
 
 
 def model_page_key(model: str) -> str:
@@ -225,6 +243,16 @@ def _worse(ppl: float, base: float | None) -> str:
     if ratio < 2:
         return f"{(ratio - 1) * 100:+.1f}%"
     return f"{ratio:,.0f}× worse" if ratio >= 10 else f"{ratio:.1f}× worse"
+
+
+def _bpw(r: Any) -> str:
+    v = r.get("bits_per_weight")
+    return "—" if v is None or pd.isna(v) else f"{float(v):.2f}"
+
+
+def _mb(r: Any) -> str:
+    v = r.get("weight_bytes")
+    return "—" if v is None or pd.isna(v) else f"{float(v) / 1e6:,.0f}"
 
 
 def _datasets_in(sub: pd.DataFrame) -> list[str]:
@@ -256,6 +284,14 @@ def _model_page(model: str, rows: pd.DataFrame, failed: pd.DataFrame) -> str:
     for d in datasets:
         lines.append(f"| {DATASET_NAMES.get(d, d)} | {_fmt(fp16[d]) if d in fp16 else '—'} |")
     lines.append("")
+    fp_rows = rows[rows["algo"] == "fp"]
+    if not fp_rows.empty and _mb(fp_rows.iloc[0]) != "—":
+        lines += [
+            f"Its weights take {_mb(fp_rows.iloc[0])} MB at 16 bits. The sizes below count the packed format: the",
+            "codes plus one scale and one zero-point per group, with everything that is not a quantized",
+            "layer (embeddings, norms, biases) still at 16 bits. *Bits per weight* is that cost per weight.",
+            "",
+        ]
 
     head = datasets[0]
     base = fp16.get(head)
@@ -263,21 +299,25 @@ def _model_page(model: str, rows: pd.DataFrame, failed: pd.DataFrame) -> str:
     best = quant[quant["dataset"] == head]
     if not best.empty:
         lines += [f"## Best result at each bit width, on {DATASET_NAMES.get(head, head)}", "",
-                  "| bits | best method | grouping | perplexity | vs full precision |", "|---|---|---|---|---|"]
+                  "| bits | best method | grouping | perplexity | vs full precision | bits per weight | weights (MB) |",
+                  "|---|---|---|---|---|---|---|"]
         for bits in sorted({int(b) for b in best["bits"]}, reverse=True):
             r = best[best["bits"] == bits].sort_values("ppl").iloc[0]
             lines.append(
                 f"| {bits} | {ALGO_NAMES.get(r['algo'], r['algo'])} | {_grouping(int(r['group_size']))} "
-                f"| {_fmt(float(r['ppl']))} | {_worse(float(r['ppl']), base)} |"
+                f"| {_fmt(float(r['ppl']))} | {_worse(float(r['ppl']), base)} | {_bpw(r)} | {_mb(r)} |"
             )
         lines.append("")
 
     lines += ["## Charts", ""]
-    for suffix, what in (("perplexity", "Perplexity by bit width"), ("delta_vs_fp16", "Increase over full precision")):
+    for suffix, what in CHARTS:
         if (paths.plots_dir() / f"{key}_{suffix}.png").is_file():
             lines += [f"![{what}](../plots/{key}_{suffix}.png)", ""]
     if lines[-2] == "## Charts":
         lines += ["_No charts yet: run `ptq plot`._", ""]
+    if (paths.results_dir() / SENSITIVITY_DIRNAME / f"{key}.md").is_file():
+        link = f"[sensitivity/{key}.md](../{SENSITIVITY_DIRNAME}/{key}.md)"
+        lines += [f"The numbers behind the sensitivity chart, layer by layer: {link}.", ""]
 
     for d in datasets:
         sub = quant[quant["dataset"] == d]

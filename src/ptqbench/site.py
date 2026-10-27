@@ -1,7 +1,8 @@
 """`ptq site`: the results and the guides as a static website, so readers install nothing.
 
 Pages: the by-model index as the home page, one page per model, the results guide and
-HOW-IT-WORKS, plus the charts. The Markdown is the same text `ptq aggregate` writes;
+HOW-IT-WORKS, one page per per-layer sensitivity table (results/sensitivity/), plus the
+charts. The Markdown is the same text `ptq aggregate` writes;
 links between those files become links between pages, and links to anything else in
 the repository point at GitHub. CI (.github/workflows/site.yml) builds this into GitHub
 Pages after every push that changes results; locally `ptq site` writes `site/` and
@@ -91,9 +92,10 @@ def _rewrite_links(text: str, source: str, output: str) -> str:
         anchor = f"#{anchor}" if anchor else ""
         if repo_rel in PAGE_MAP:
             return f"[{label}]({_relative(PAGE_MAP[repo_rel], out_dir)}{anchor})"
-        by_model = re.fullmatch(r"results/by-model/([^/]+)\.md", repo_rel)
-        if by_model:
-            return f"[{label}]({_relative(f'by-model/{by_model.group(1)}.html', out_dir)}{anchor})"
+        for folder in ("by-model", "sensitivity"):  # one page per Markdown file in these
+            page = re.fullmatch(rf"results/{folder}/([^/]+)\.md", repo_rel)
+            if page and page.group(1) != "README":
+                return f"[{label}]({_relative(f'{folder}/{page.group(1)}.html', out_dir)}{anchor})"
         if repo_rel.startswith("results/plots/"):
             return f"[{label}]({_relative(repo_rel.removeprefix('results/'), out_dir)})"
         return f"[{label}]({REPO_URL}/blob/main/{repo_rel}{anchor})"
@@ -177,9 +179,13 @@ def build(out_dir: str | Path | None = None, *, root: Path | None = None) -> lis
             continue
         md = md_path.read_text(encoding="utf-8")
         pages[f"by-model/{md_path.stem}.html"] = (md, f"results/by-model/{md_path.name}", _title_of(md, md_path.stem))
+    for md_path in sorted((root / "results/sensitivity").glob("*.md")):
+        md = md_path.read_text(encoding="utf-8")
+        pages[f"sensitivity/{md_path.stem}.html"] = (md, f"results/sensitivity/{md_path.name}", _title_of(md, md_path.stem))
 
     for output, (md, source, title) in pages.items():
         target = out / output
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(_page(md, source=source, output=output, title=title, root=root), encoding="utf-8")
         written.append(target)
 

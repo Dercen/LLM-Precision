@@ -25,6 +25,10 @@ def test_pages_and_charts_are_written(built):
     assert {"index.html", "results-guide.html", "how-it-works.html", "by-model/opt-125m.html"} <= names
     assert (out / "plots" / "opt-125m_perplexity.png").is_file()
     assert (out / ".nojekyll").is_file()
+    from ptqbench import paths
+
+    for md in (paths.results_dir() / "sensitivity").glob("*.md"):  # one page per sensitivity table
+        assert f"sensitivity/{md.stem}.html" in names
 
 
 def test_links_stay_on_site_or_go_to_github(built):
@@ -71,6 +75,8 @@ def test_link_rewriting_rules():
     out = S._rewrite_links(md, "results/by-model/opt-125m.md", "by-model/opt-125m.html")
     assert "[guide](../results-guide.html)" in out and "[home](../index.html)" in out
     assert f"[design]({S.REPO_URL}/blob/main/docs/DESIGN.md)" in out
+    sens = S._rewrite_links("[layers](../sensitivity/opt-125m.md)", "results/by-model/opt-125m.md", "by-model/opt-125m.html")
+    assert sens == "[layers](../sensitivity/opt-125m.html)"
     assert "[web](https://x.y)" in out and "[a](#top)" in out
     img = S._rewrite_links("![c](../plots/x.png)", "results/by-model/m.md", "by-model/m.html")
     assert img == "![c](../plots/x.png)"

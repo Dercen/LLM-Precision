@@ -179,6 +179,16 @@ See docs/RESULTS.md.
 AWQ-lite beats RTN at the same grid on both families: opt-125m 4-bit g128 30.48 → 29.30,
 3-bit g128 51.20 → 36.97, SmolLM2 4-bit g64 19.95 → 17.47.
 
+**Size, grouping and sensitivity (for the vault hardware):** every row carries its packed
+size and bits per weight, and two group-size sweeps (109 cells) show the families disagree
+on tiling: SmolLM2 keeps gaining down to groups of 32 (RTN 4-bit 26.6 per-row → 18.7, AWQ-lite
+16.9 = +9.5% at 118 MB) while opt-125m flattens at 64 (AWQ-lite 28.6, within 5% at 126 MB).
+Both stop near 2.2× smaller than fp16 because the embedding table stays 16-bit. The
+per-layer sensitivity profiles say which layers need the bits: the value projection on
+SmolLM2 (2.3× the key projection's error) and the second feed-forward matrix on opt-125m,
+the same ranking at every bit width. All of it is in the "Size, grouping and which layers
+are sensitive" section of [docs/RESULTS.md](docs/RESULTS.md).
+
 ## Running the matrix
 
 ```bash
@@ -192,6 +202,26 @@ uv run ptq cache ls                                               # quantized-we
 M2 also settled a question the GPTQ README leaves open: its Tables 9 and 11 use the
 `--new-eval` dataset variants, not `get_ptb`/`get_c4`. The plain keys miss by 7–17%
 while the `_new` keys match to 0.1% on two independent columns each. See docs/DESIGN.md §7.
+
+### Size, grouping and which layers are sensitive
+
+Three things the hardware side asks that the perplexity tables alone do not answer:
+
+- **How big is each setting?** Every row carries `bits_per_weight` and `weight_bytes`,
+  computed from the model's config the way the hand-off format stores weights (packed
+  codes, one 16-bit scale and one zero-point per group, everything else at 16 bits; the
+  rule is in `src/ptqbench/analysis/footprint.py`). `ptq plot` draws perplexity against
+  bytes with the Pareto frontier as `results/plots/<model>_frontier.png`.
+- **Which grouping is free?** `configs/experiments/groupsize_smollm2.yaml` and
+  `groupsize_opt125m.yaml` sweep every group size that divides the model's widths, from
+  per-row down to 32, at 4/3/2 bits. `ptq plot` then draws `<model>_groupsize.png` with
+  the bits per weight each grouping costs under its label.
+- **Which layers tolerate fewer bits?** `scripts/sensitivity-sweep.sh <model> <group size>`
+  quantizes at 4/3/2 bits with RTN and GPTQ, scoring every layer's output error on real
+  text (`ptq export-mlir --score-windows`), and `ptq sensitivity` turns the `layers.json`
+  files into `results/sensitivity/<model>.md` (blocks down, projections across) and a
+  heatmap, `<model>_sensitivity.png`. All three charts appear on the model's page in
+  `results/by-model/` and on the website.
 
 ## Exporting a quantized model to torch-mlir
 

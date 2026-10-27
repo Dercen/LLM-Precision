@@ -1,6 +1,6 @@
 """`ptq plot`: static figures from results.csv. DESIGN.md 9.5.
 
-Two figures per model:
+Four figures per model:
 
 * perplexity: three panels (wikitext2, c4_new, ptb_new), bits categorical on x, log-y
   perplexity, one line per algorithm in a FIXED colour (slot order rtn, gptq, awq_lite,
@@ -10,6 +10,11 @@ Two figures per model:
 * delta heatmap: (algorithm, group size) rows by bits, coloured by log10(1 + ppl - fp16)
   on a single-hue sequential ramp, the value printed in each cell in ink chosen by the
   fill's luminance.
+* frontier: perplexity against weight bytes (`analysis.footprint`) on WikiText-2, every
+  setting a point, the Pareto frontier a grey step, fp16 a square.
+* group size: one panel per bit width, perplexity against grouping from per-row down to
+  the smallest group, the bits per weight of each grouping under its label. Drawn only
+  for models with three or more groupings at one bit width (the group-size sweeps).
 
 Colours are the validated reference palette; text always wears text tokens, marks
 carry the series colour; gridlines are solid hairlines. results.csv and summary.md are
@@ -209,6 +214,185 @@ def plot_delta_heatmap(ok: pd.DataFrame, model: str, out: Path) -> Path | None:
     return out
 
 
+CAPTION_FRONTIER = ("Lower-left is better: less memory and less loss. Bytes are the packed weights (codes plus a 16-bit "
+                    "scale and a zero-point per group) with embeddings, norms and biases left at 16 bits. The grey step is "
+                    "the frontier, and only the settings on it are labelled; the square is the unmodified fp16 model. "
+                    "Settings more than 20x worse than fp16 are left off.")
+CAPTION_GROUPSIZE = ("Lower is better. Smaller groups give every weight a closer scale factor but cost memory: the number "
+                     "under each grouping is its bits per weight for plain rounding, scales and zero-points included "
+                     "(HQQ's float zero-points and act-order GPTQ's group index add a little). The grey line is the "
+                     "unmodified fp16 model and the band is within 5% of it.")
+#: Settings this many times worse than fp16 are off the useful scale of the frontier chart.
+FRONTIER_CUTOFF = 20.0
+#: A frontier needs at least this many settings to be worth a chart.
+MIN_POINTS = 3
+#: Frontier labels: the next label waits for the loss to fall by this much (log10; 0.08 is 20%).
+LABEL_GAP = 0.08
+#: Inches: narrower figures wrap the title and caption into each other.
+MIN_FIGURE_WIDTH = 7.6
+#: Inches per grouping on a group-size panel: eight groupings need room for two-line labels.
+PANEL_WIDTH_PER_GROUPING = 0.62
+#: A group-size chart needs at least this many groupings at one bit width: the sweeps
+#: have six to eight, the plain matrix at most three (per-row, g128 and 2-bit g64).
+MIN_GROUP_SIZES = 4
+
+
+def _gs_label(gs: int) -> str:
+    return GS_LABEL.get(gs, "per-row" if gs == -1 else f"g{gs}")
+
+
+def _fp16_rule(ax, base: float) -> None:
+    """The unmodified model as a rule, with the within-5% band above it."""
+    ax.axhspan(base, base * 1.05, color=BAND, zorder=0, linewidth=0)
+    ax.axhline(base, color=CHROME["axis"], linewidth=1.2, zorder=1)
+
+
+def _ppl_axis(ax) -> None:
+    ax.set_yscale("log")
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _fmt_ppl(v)))
+    ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+
+
+def _label_narrow_axis(ax) -> None:
+    """A log axis spanning less than a decade may show no major tick at all (15 to 27
+    sits between 10 and 100): label its minor ticks instead."""
+    lo, hi = ax.get_ylim()
+    if hi / lo < 10:
+        ax.yaxis.set_minor_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _fmt_ppl(v)))
+
+
+def plot_frontier(ok: pd.DataFrame, model: str, out: Path, dataset: str = "wikitext2") -> Path | None:
+    """Perplexity against weight bytes on one dataset: every setting as a point, the
+    settings nothing beats on both axes joined into a step (the Pareto frontier)."""
+    if "weight_bytes" not in ok.columns:
+        return None
+    sub = ok[(ok["model"] == model) & (ok["dataset"] == dataset) & ok["weight_bytes"].notna()]
+    fp = sub[sub["algo"] == "fp"]
+    if fp.empty or len(sub) < MIN_POINTS:
+        return None
+    base = float(fp["ppl"].iloc[0])
+    sub = sub[sub["ppl"] <= base * FRONTIER_CUTOFF]
+    fig, ax = plt.subplots(figsize=(7.6, 5.2))
+    _ppl_axis(ax)
+    _fp16_rule(ax, base)
+    fp_mb = float(fp["weight_bytes"].iloc[0]) / 1e6
+    ax.plot([fp_mb], [base], "s", markersize=9, color=INK["secondary"], linestyle="none", zorder=4)
+    ax.annotate("fp16", xy=(fp_mb, base), xytext=(6, 5), textcoords="offset points", fontsize=8.5, color=INK["secondary"])
+    handles: dict[str, Line2D] = {}
+    for algo, colour in SERIES.items():
+        q = sub[sub["algo"] == algo]
+        if q.empty:
+            continue
+        line, = ax.plot(q["weight_bytes"].astype(float) / 1e6, q["ppl"].astype(float), "o", color=colour, markersize=7,
+                        markeredgecolor=CHROME["surface"], markeredgewidth=1.2, linestyle="none", zorder=3)
+        handles[algo] = line
+    quant = sub[sub["algo"] != "fp"]
+    points = sorted(
+        (float(r["weight_bytes"]) / 1e6, float(r["ppl"]), f"{int(r['bits'])}b {_gs_label(int(r['group_size']))}")
+        for _, r in quant.iterrows()
+    )
+    front: list[tuple[float, float, str]] = []
+    best = math.inf
+    for x, y, label in points:  # left to right, keep each new low: the staircase nothing improves on
+        if y < best:
+            best = y
+            front.append((x, y, label))
+    last_labelled = math.inf
+    for x, y, label in front:
+        # The frontier descends in clusters, one point per grouping. Label a point only
+        # once the loss has dropped LABEL_GAP below the last labelled one.
+        if math.log10(last_labelled) - math.log10(y) < LABEL_GAP:
+            continue
+        last_labelled = y
+        ax.annotate(label, xy=(x, y), xytext=(6, 3), textcoords="offset points", fontsize=7.5, color=INK["secondary"])
+    if base < best:  # the unmodified model ends the staircase (it is labelled above)
+        front.append((fp_mb, base, "fp16"))
+    if len(front) > 1:
+        ax.step([x for x, _, _ in front], [y for _, y, _ in front], where="post", color=INK["muted"], linewidth=1.2, zorder=2)
+    ax.set_xlabel("weights (MB)")
+    ax.set_ylabel("perplexity (log), lower is better")
+    ax.set_xlim(left=0.9 * float(sub["weight_bytes"].min()) / 1e6)
+    _label_narrow_axis(ax)
+    items = [handles[a] for a in SERIES if a in handles]
+    labels = [ALGO_LABEL[a] for a in SERIES if a in handles]
+    items.append(Line2D([], [], marker="s", linestyle="none", markersize=8, color=INK["secondary"]))
+    labels.append("fp16")
+    items.append(plt.Rectangle((0, 0), 1, 1, facecolor=BAND, edgecolor="none"))
+    labels.append("within 5% of fp16")
+    fig.legend(items, labels, loc="lower center", ncol=len(items), bbox_to_anchor=(0.5, 0.1))
+    fig.suptitle(f"{model} — perplexity against model size, {DATASET_TITLE.get(dataset, dataset)}",
+                 x=0.01, ha="left", fontsize=12, color=INK["primary"])
+    fig.text(0.01, 0.006, CAPTION_FRONTIER, ha="left", va="bottom", fontsize=8.2, color=INK["secondary"], wrap=True)
+    fig.tight_layout(rect=(0, 0.17, 1, 0.95))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
+def plot_groupsize(ok: pd.DataFrame, model: str, out: Path, dataset: str = "wikitext2") -> Path | None:
+    """One panel per bit width: perplexity against grouping, per-row then large groups to
+    small, one line per method; the bits per weight each grouping costs under its label."""
+    sub = ok[(ok["model"] == model) & (ok["dataset"] == dataset)]
+    quant = sub[sub["algo"] != "fp"]
+    panels = [b for b in (4, 3, 2) if quant[quant["bits"] == b]["group_size"].nunique() >= MIN_GROUP_SIZES]
+    if not panels:
+        return None
+    gs_values = sorted({int(g) for g in quant[quant["bits"].isin(panels)]["group_size"]}, key=lambda g: (g != -1, -g))
+    fp = sub[sub["algo"] == "fp"]["ppl"]
+    # Each bit width gets its own y range: 2-bit collapses to 10^6 and more, which on a
+    # shared axis would flatten the 4-bit panel, the one that carries the decision.
+    panel_width = max(4.6, PANEL_WIDTH_PER_GROUPING * len(gs_values) + 1.6)
+    fig, axes = plt.subplots(1, len(panels), figsize=(max(MIN_FIGURE_WIDTH, panel_width * len(panels)), 4.8), squeeze=False)
+    handles: dict[str, Line2D] = {}
+    for ax, bits in zip(axes[0], panels, strict=True):
+        d = quant[quant["bits"] == bits]
+        labels = []
+        for g in gs_values:
+            cell = d[d["group_size"] == g]
+            label = _gs_label(g)
+            if "bits_per_weight" in cell.columns and cell["bits_per_weight"].notna().any():
+                plain = cell[cell["algo"] == "rtn"]["bits_per_weight"].dropna()
+                bpw = float(plain.iloc[0]) if not plain.empty else float(cell["bits_per_weight"].dropna().min())
+                label += f"\n{bpw:.2f}"
+            labels.append(label)
+        ax.set_xticks(range(len(gs_values)))
+        ax.set_xticklabels(labels, fontsize=8)
+        _ppl_axis(ax)
+        ax.grid(axis="x", visible=False)
+        if not fp.empty:
+            _fp16_rule(ax, float(fp.iloc[0]))
+            ax.annotate(f"fp16 {float(fp.iloc[0]):.2f}", xy=(-0.35, float(fp.iloc[0])), xytext=(0, 3),
+                        textcoords="offset points", ha="left", va="bottom", fontsize=8, color=INK["secondary"])
+        for algo, colour in SERIES.items():
+            q = d[d["algo"] == algo]
+            if q.empty:
+                continue
+            pts = sorted((gs_values.index(int(g)), float(p)) for g, p in zip(q["group_size"], q["ppl"], strict=True))
+            line, = ax.plot([x for x, _ in pts], [y for _, y in pts], "-", color=colour, linewidth=2, marker="o",
+                            markersize=7, markerfacecolor=colour, markeredgecolor=CHROME["surface"], markeredgewidth=2,
+                            solid_capstyle="round", zorder=3)
+            handles.setdefault(algo, line)
+        ax.set_title(f"{bits}-bit", loc="left")
+        ax.set_xlim(-0.4, len(gs_values) - 0.6)
+        _label_narrow_axis(ax)
+    for ax in axes[0]:
+        ax.set_ylabel("perplexity (log), lower is better")
+    items = [handles[a] for a in SERIES if a in handles]
+    labels = [ALGO_LABEL[a] for a in SERIES if a in handles]
+    items.append(plt.Rectangle((0, 0), 1, 1, facecolor=BAND, edgecolor="none"))
+    labels.append("within 5% of fp16")
+    fig.legend(items, labels, loc="lower center", ncol=len(items), bbox_to_anchor=(0.5, 0.1))
+    fig.suptitle(f"{model} — perplexity by group size, {DATASET_TITLE.get(dataset, dataset)}",
+                 x=0.01, ha="left", fontsize=12, color=INK["primary"])
+    fig.text(0.01, 0.006, CAPTION_GROUPSIZE, ha="left", va="bottom", fontsize=8.2, color=INK["secondary"], wrap=True)
+    fig.tight_layout(rect=(0, 0.18, 1, 0.94))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
+
+
 def plot_all(models: list[str] | None = None, csv_path: Path | None = None) -> list[Path]:
     _style()
     csv_path = csv_path or paths.tables_dir() / "results.csv"
@@ -224,8 +408,12 @@ def plot_all(models: list[str] | None = None, csv_path: Path | None = None) -> l
         key = model.split("/")[-1].lower()
         if wanted and key not in wanted and model not in wanted:
             continue
-        for fn, suffix in ((plot_perplexity, "perplexity"), (plot_delta_heatmap, "delta_vs_fp16")):
-            out = fn(ok, model, paths.plots_dir() / f"{key}_{suffix}.png")
+        for fn, suffix in ((plot_perplexity, "perplexity"), (plot_delta_heatmap, "delta_vs_fp16"),
+                           (plot_frontier, "frontier"), (plot_groupsize, "groupsize")):
+            target = paths.plots_dir() / f"{key}_{suffix}.png"
+            out = fn(ok, model, target)
             if out is not None:
                 written.append(out)
+            else:  # nothing to draw any more: a stale chart must not stay on the model's page
+                target.unlink(missing_ok=True)
     return written

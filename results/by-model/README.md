@@ -6,8 +6,8 @@ worse than the full-precision model.
 
 | model | full precision | best 4-bit | best 3-bit |
 |---|---|---|---|
-| [opt-125m](opt-125m.md) | 27.6559 | 29.3020 (AWQ-lite, +6.0%) | 36.9550 (AWQ-lite, +33.6%) |
-| [smollm2-135m](smollm2-135m.md) | 15.4154 | 19.5012 (GPTQ, +26.5%) | 37.7635 (GPTQ, 2.4× worse) |
+| [opt-125m](opt-125m.md) | 27.6559 | 28.5903 (AWQ-lite, +3.4%) | 31.8156 (AWQ-lite, +15.0%) |
+| [smollm2-135m](smollm2-135m.md) | 15.4154 | 16.8861 (AWQ-lite, +9.5%) | 24.0412 (AWQ-lite, +56.0%) |
 | [opt-350m](opt-350m.md) | 22.0017 | 23.2116 (GPTQ, +5.5%) | 27.2601 (GPTQ, +23.9%) |
 | [opt-1.3b](opt-1.3b.md) | 14.6239 | 14.8646 (GPTQ, +1.6%) | 16.4698 (AWQ-lite, +12.6%) |
 | [opt-2.7b](opt-2.7b.md) | 12.4711 | 12.6244 (GPTQ, +1.2%) | 13.4310 (AWQ-lite, +7.7%) |

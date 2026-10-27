@@ -52,3 +52,36 @@ def test_page_picks_best_method_and_lists_failures(df, tmp_path):
     assert "| 4 | GPTQ | groups of 128 | 10.5000 | +5.0% |" in best
     assert "RTN (plain rounding) | per row" in page
     assert "`oom` (1)" in page
+
+
+def test_table_carries_sizes_when_the_config_is_known(monkeypatch):
+    from ptqbench.analysis import footprint as F
+    from tests.tiny_models import tiny_opt
+
+    tiny = tiny_opt().config
+    monkeypatch.setattr(F, "load_config", lambda repo, revision=None: tiny if repo == "org/tiny-opt" else (_ for _ in ()).throw(OSError(repo)))
+    rows = [
+        {"run_id": "a", "model": "org/tiny-opt", "dataset": "wikitext2", "algo": "fp", "bits": 16, "group_size": -1,
+         "ppl": 20.0, "status": "ok", "partial": False, "dtype": "torch.float16"},
+        {"run_id": "b", "model": "org/tiny-opt", "dataset": "wikitext2", "algo": "rtn", "bits": 4, "group_size": 16,
+         "ppl": 22.0, "status": "ok", "partial": False, "dtype": "torch.float16"},
+        {"run_id": "c", "model": "org/unknown", "dataset": "wikitext2", "algo": "rtn", "bits": 4, "group_size": 16,
+         "ppl": 22.0, "status": "ok", "partial": False},
+        {"run_id": "d", "model": "org/tiny-opt", "dataset": "wikitext2", "algo": "rtn", "bits": 3, "group_size": 16,
+         "ppl": None, "status": "failed", "partial": False, "reason": "oom"},
+    ]
+    df = A.build_table(rows).set_index("run_id")
+    assert df.loc["a", "bits_per_weight"] == 16.0 and df.loc["a", "weight_bytes"] == 87680 * 2
+    assert df.loc["b", "bits_per_weight"] == pytest.approx(4 + 20 / 16) and df.loc["b", "weight_bytes"] < df.loc["a", "weight_bytes"]
+    assert pd.isna(df.loc["c", "bits_per_weight"]) and pd.isna(df.loc["d", "weight_bytes"])
+
+
+def test_page_shows_sizes_when_present(tmp_path):
+    rows = pd.DataFrame([
+        {**_row("org/big-1.3b", "fp", 16, -1, 10.0), "bits_per_weight": 16.0, "weight_bytes": 2_600_000_000},
+        {**_row("org/big-1.3b", "rtn", 4, 128, 11.0), "bits_per_weight": 4.15625, "weight_bytes": 900_000_000},
+    ])
+    A.write_by_model(rows, tmp_path)
+    page = (tmp_path / "big-1.3b.md").read_text(encoding="utf-8")
+    assert "take 2,600 MB at 16 bits" in page
+    assert "| 4 | RTN (plain rounding) | groups of 128 | 11.0000 | +10.0% | 4.16 | 900 |" in page

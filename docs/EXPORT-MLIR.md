@@ -93,6 +93,12 @@ Add a per-layer *output* error, measured on real text, to `layers.json`:
 uv run ptq export-mlir --model opt-125m --bits 4 --group-size 128 --score-windows 4 --out exports/scored
 ```
 
+Several such exports of one model (say 4, 3 and 2 bits with RTN and GPTQ) become a
+per-layer sensitivity profile with `ptq sensitivity exports/*/layers.json`: a table of
+blocks down and projections across in `results/sensitivity/<model>.md`, and a heatmap
+in `results/plots/`. `scripts/sensitivity-sweep.sh <model> <group size>` runs the whole
+loop.
+
 Other switches you may want:
 
 | switch | effect |

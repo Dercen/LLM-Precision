@@ -16,14 +16,18 @@ badly damaged. See `results/README.md` for the method and grouping terms.
 | C4 (web pages) | 21.3447 |
 | PTB (1980s news sentences) | 32.3352 |
 
+Its weights take 269 MB at 16 bits. The sizes below count the packed format: the
+codes plus one scale and one zero-point per group, with everything that is not a quantized
+layer (embeddings, norms, biases) still at 16 bits. *Bits per weight* is that cost per weight.
+
 ## Best result at each bit width, on WikiText-2 (Wikipedia articles)
 
-| bits | best method | grouping | perplexity | vs full precision |
-|---|---|---|---|---|
-| 8 | HQQ | groups of 64 | 15.4258 | +0.1% |
-| 4 | GPTQ | groups of 64 | 19.5012 | +26.5% |
-| 3 | GPTQ | groups of 64 | 37.7635 | 2.4× worse |
-| 2 | GPTQ | groups of 64 | 12,178.11 | 790× worse |
+| bits | best method | grouping | perplexity | vs full precision | bits per weight | weights (MB) |
+|---|---|---|---|---|---|---|
+| 8 | HQQ | groups of 64 | 15.4258 | +0.1% | 8.50 | 169 |
+| 4 | AWQ-lite | groups of 32 | 16.8861 | +9.5% | 4.62 | 118 |
+| 3 | AWQ-lite | groups of 32 | 24.0412 | +56.0% | 3.59 | 104 |
+| 2 | GPTQ | groups of 32 | 3,606.66 | 234× worse | 2.59 | 91 |
 
 ## Charts
 
@@ -31,18 +35,43 @@ badly damaged. See `results/README.md` for the method and grouping terms.
 
 ![Increase over full precision](../plots/smollm2-135m_delta_vs_fp16.png)
 
+![Perplexity against model size](../plots/smollm2-135m_frontier.png)
+
+![Perplexity by group size](../plots/smollm2-135m_groupsize.png)
+
+![Which layers tolerate fewer bits](../plots/smollm2-135m_sensitivity.png)
+
+The numbers behind the sensitivity chart, layer by layer: [sensitivity/smollm2-135m.md](../sensitivity/smollm2-135m.md).
+
 ## Every result: WikiText-2 (Wikipedia articles)
 
 Full precision: 15.4154
 
 | method | grouping | 8-bit | 4-bit | 3-bit | 2-bit |
 |---|---|---|---|---|---|
+| AWQ-lite | groups of 32 | — | 16.8861 (+9.5%) | 24.0412 (+56.0%) | — |
+| AWQ-lite | groups of 48 | — | 17.1661 (+11.4%) | 26.8279 (+74.0%) | — |
+| AWQ-lite | groups of 64 | — | 17.4968 (+13.5%) | 29.6595 (+92.4%) | — |
+| AWQ-lite | groups of 96 | — | 17.8358 (+15.7%) | 33.4715 (2.2× worse) | — |
+| AWQ-lite | groups of 192 | — | 18.7080 (+21.4%) | 50.6271 (3.3× worse) | — |
 | GPTQ | per row | 15.4519 (+0.2%) | 24.1774 (+56.8%) | 95.6368 (6.2× worse) | 976,635.13 (63,355× worse) |
+| GPTQ | groups of 32 | — | 17.9749 (+16.6%) | 29.3027 (+90.1%) | 3,606.66 (234× worse) |
+| GPTQ | groups of 48 | — | 18.6318 (+20.9%) | 35.2985 (2.3× worse) | 5,232.50 (339× worse) |
 | GPTQ | groups of 64 | 15.4266 (+0.1%) | 19.5012 (+26.5%) | 37.7635 (2.4× worse) | 12,178.11 (790× worse) |
+| GPTQ | groups of 96 | — | 20.3626 (+32.1%) | 45.0082 (2.9× worse) | 23,684.70 (1,536× worse) |
+| GPTQ | groups of 192 | — | 21.5572 (+39.8%) | 55.1698 (3.6× worse) | 179,496.30 (11,644× worse) |
 | HQQ | per row | 15.4581 (+0.3%) | 26.4553 (+71.6%) | 16,069.75 (1,042× worse) | 2,267,870,383.71 (147,117,545× worse) |
+| HQQ | groups of 32 | — | 18.3339 (+18.9%) | 55.9417 (3.6× worse) | 260,142.53 (16,876× worse) |
+| HQQ | groups of 48 | — | 19.5766 (+27.0%) | 61.0673 (4.0× worse) | 1,098,403.96 (71,254× worse) |
 | HQQ | groups of 64 | 15.4258 (+0.1%) | 20.1503 (+30.7%) | 142.16 (9.2× worse) | 508,838.64 (33,009× worse) |
+| HQQ | groups of 96 | — | 21.0375 (+36.5%) | 313.78 (20× worse) | 1,094,030.16 (70,970× worse) |
+| HQQ | groups of 192 | — | 22.7197 (+47.4%) | 935.30 (61× worse) | 1,065,538.03 (69,122× worse) |
 | RTN (plain rounding) | per row | 15.4465 (+0.2%) | 26.6056 (+72.6%) | 2,180.35 (141× worse) | 44,561,553.62 (2,890,724× worse) |
+| RTN (plain rounding) | groups of 32 | — | 18.6456 (+21.0%) | 44.9324 (2.9× worse) | 205,273.21 (13,316× worse) |
+| RTN (plain rounding) | groups of 48 | — | 19.2844 (+25.1%) | 59.0421 (3.8× worse) | 238,333.64 (15,461× worse) |
 | RTN (plain rounding) | groups of 64 | 15.4307 (+0.1%) | 19.9461 (+29.4%) | 66.2409 (4.3× worse) | 1,004,885.40 (65,187× worse) |
+| RTN (plain rounding) | groups of 96 | — | 20.8809 (+35.5%) | 104.04 (6.7× worse) | 1,575,469.14 (102,201× worse) |
+| RTN (plain rounding) | groups of 192 | — | 22.3093 (+44.7%) | 239.63 (16× worse) | 2,347,796.10 (152,302× worse) |
 
 ## Every result: C4 (web pages)
 

@@ -203,6 +203,21 @@ def cmd_plot(args: argparse.Namespace) -> int:
     return OK
 
 
+def cmd_sensitivity(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from .analysis import sensitivity as S
+
+    result = S.run([Path(p) for p in args.layers], out_dir=Path(args.out) if args.out else None)
+    kind = "output error on real text" if result["metric"] == S.METRIC_OUTPUT else "weight error (no --score-windows)"
+    print(f"{result['model_key']}: {result['n_configs']} configuration(s), {result['n_layers']} layer rows; {kind}")
+    print("average over blocks, per projection:")
+    print(result["means"].round(4).to_string())
+    for key in ("md", "csv", "png"):
+        print(_fmt(key, result[key]))
+    return OK
+
+
 def cmd_prefetch(args: argparse.Namespace) -> int:
     from .runner import matrix as M
 
@@ -408,6 +423,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_plot = sub.add_parser("plot", help="results/tables/results.csv -> results/plots/*.png")
     p_plot.add_argument("--models", nargs="*", default=None, help="model keys to plot (default all)")
     p_plot.set_defaults(func=cmd_plot)
+
+    p_sens = sub.add_parser(
+        "sensitivity",
+        help="per-layer sensitivity tables and heatmap from exports made with `export-mlir --score-windows`",
+    )
+    p_sens.add_argument("layers", nargs="+", help="layers.json of one or more exports of the same model (export.json beside it)")
+    p_sens.add_argument("--out", default=None, help="directory for the .md and .csv (default results/sensitivity/)")
+    p_sens.set_defaults(func=cmd_sensitivity)
 
     p_pre = sub.add_parser("prefetch", help="download weights, datasets and calibration for an experiment")
     p_pre.add_argument("experiment")
