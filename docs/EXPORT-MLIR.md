@@ -173,6 +173,56 @@ through `src/ptqbench/models/families.py`, which names each family's attention m
 and MLP (OPT's `fc1 -> activation -> fc2` chain is wrapped as one module there).
 SmolLM2-135M, the primary target, has hidden size 576, so use `--group-size 64`.
 
+## Weights outside the IR: `--weights external`
+
+By default every weight sits inside the `.mlir` as a hex blob, which is why the file is
+hundreds of megabytes. `--weights external` writes a graph-only `.mlir` whose function
+takes the weights as arguments, plus two files:
+
+```bash
+uv run ptq export-mlir --model smollm2-135m --bits 4 --group-size 64 \
+    --weights external --golden --output-type both --explicit-positions --out exports/smollm2-ext
+```
+
+- **`weights.bin`**: every tensor, one after another, each starting at a multiple of
+  **64 bytes** (`WEIGHT_ALIGNMENT_BYTES` in `src/ptqbench/export/weights.py`, written
+  into the index as `alignment`). Scales, zero-points, biases and unquantized tensors are
+  stored in exactly the dtype the function argument has; codes narrower than a byte are
+  packed.
+- **`weights.json`**: per tensor its `name` (the model's own module path, e.g.
+  `model.layers.3.mlp.gate_proj.weight_q`), `role` (`codes`, `scale`, `zero`, `g_idx`,
+  `bias`, `float` for unquantized float tensors such as embeddings, norms and rotary
+  tables, `int` for integer constants), `shape`, `dtype`, `bits`, `group_size`,
+  `scheme`, byte `offset` and `length`, whether it is `packed` and, if so, its
+  `row_stride_bytes`, a SHA-256, and any `aliases` (a tied `lm_head.weight` is stored
+  once under the embedding's name). `functions` lists, per exported function, which
+  tensor each argument is, in argument order.
+- **The `.mlir`** has no `dense_resource` at all. `main(%input_ids, %arg1, %arg2, ...)`
+  takes the weights in the order the graph first uses them (execution order); the
+  `functions` entry maps every `%argN` to a tensor.
+
+**Packing, defined once.** Codes are packed row by row as a little-endian bit stream.
+Row `r` of a `(rows, cols)` code matrix takes `ceil(cols × bits / 8)` bytes; within a
+row, code `j` occupies bits `[j·bits, (j+1)·bits)` of the row's bit stream, least
+significant bit first, and bit `k` of the stream is bit `k mod 8` of byte `k ÷ 8`. So at
+4 bits code 0 is the **low nibble** of byte 0 and code 1 the high nibble; at 3 bits codes
+straddle byte boundaries (codes `[1, 2, 3]` become bytes `[0xD1, 0x00]`); at 2 bits four
+codes share a byte. Unused trailing bits of a row's last byte are zero, so a group of 64
+or 128 codes always starts on a byte boundary. 8-bit codes are one byte each and marked
+`packed: false`. In C: `code_j = (row >> (j * bits)) & ((1 << bits) - 1)` with the row
+read as a little-endian integer. `src/ptqbench/export/weights.py` has `pack` and
+`unpack`, tested to round-trip at every width from 2 to 8 bits.
+
+**Why the importer hook, and not a wrapper.** torch-mlir asks a hook how to turn each
+parameter into IR; the embedded export answers "a dense resource", the external one
+"a new function argument". The graph is otherwise identical, tied tensors become one
+argument, and every argument keeps its module name. Wrapping the model in
+`torch.func.functional_call` would also work but adds a layer, duplicates tied weights
+and loses the name mapping.
+
+**Checked:** `tests/test_export_weights.py` rebuilds a model from `weights.bin` and
+`weights.json` alone and gets the golden logits back bit for bit.
+
 ## The lowered form: `--output-type linalg`
 
 `model.mlir` is the model in torch-mlir's *torch dialect*: one op per PyTorch operation,

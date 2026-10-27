@@ -276,7 +276,7 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         write_mlir=not args.no_mlir, bytecode=args.bytecode, output_type=args.output_type,
         explicit_positions=args.explicit_positions, score_windows=args.score_windows,
         golden=args.golden, golden_dataset=args.golden_dataset, golden_seed=args.golden_seed,
-        slice=args.slice, block_index=args.block_index,
+        slice=args.slice, block_index=args.block_index, weights=args.weights,
         score_dataset=args.score_dataset, score_seqlen=args.score_seqlen, score_seed=args.seed,
         eval_mode=args.eval_mode, deterministic=args.deterministic,
     )
@@ -299,6 +299,10 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         print(_fmt("mlir", f"{result.mlir_path} ({m['mlir']['mlir_bytes'] / 1024**2:.1f} MB)"))
     if result.linalg_path:
         print(_fmt("mlir (linalg)", f"{result.linalg_path} ({m['mlir']['linalg_bytes'] / 1024**2:.1f} MB)"))
+    if result.weights_path:
+        w = m["weights"]
+        print(_fmt("weights", f"{result.weights_path} ({w['total_bytes'] / 1024**2:.1f} MB, {w['n_tensors']} tensors, "
+                              f"{w['alignment']}-byte aligned; index {w['index']})"))
     if result.golden_path:
         for name, g in m["golden"]["functions"].items():
             detail = "tolerance not measured" if g is None else f"max|err| vs fp64 {g['max_abs_err_vs_fp64']:.3g} -> atol {g['atol']:.3g}"
@@ -454,6 +458,11 @@ def build_parser() -> argparse.ArgumentParser:
              "state the piece receives on a real text sample (chosen like the golden input)",
     )
     p_exp.add_argument("--block-index", type=int, default=0, help="which decoder block --slice cuts from")
+    p_exp.add_argument(
+        "--weights", default="embedded", choices=["embedded", "external"],
+        help="embedded: weights inside the .mlir as dense resources (default); external: a graph-only .mlir "
+             "taking them as arguments, plus weights.bin (packed, 64-byte aligned) and weights.json",
+    )
     p_exp.add_argument("--golden-dataset", default="wikitext2", help="text the golden token ids come from")
     p_exp.add_argument("--golden-seed", type=int, default=0, help="picks the window of that text")
     p_exp.add_argument("--score-windows", type=int, default=0, help="windows for per-layer output error (0 = off)")

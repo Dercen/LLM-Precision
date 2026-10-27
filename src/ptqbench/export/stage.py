@@ -33,6 +33,7 @@ from . import files as files_mod
 from . import golden as golden_mod
 from . import mlir as mlir_mod
 from . import slices as slices_mod
+from . import weights as weights_mod
 from .quantized import QuantizedLinear, swap_in_quantized
 
 FORMAT_VERSION = 1
@@ -63,6 +64,10 @@ class ExportOptions:
     #: (the golden dataset and seed pick it), and the whole-model `main` is not written.
     slice: str | None = None
     block_index: int = 0
+    #: Where the weights go: `embedded` in the .mlir as dense resources (default), or
+    #: `external`: a graph-only .mlir that takes them as arguments, plus weights.bin and
+    #: weights.json (export/weights.py).
+    weights: str = "embedded"
     #: Windows of `score_dataset` on which each layer's output is compared with the
     #: output its pre-rounding weight gives on the same input; 0 disables scoring.
     score_windows: int = 0
@@ -86,6 +91,7 @@ class ExportResult:
     mlir_path: Path | None = None
     linalg_path: Path | None = None
     golden_path: Path | None = None
+    weights_path: Path | None = None
     notes: list[str] = field(default_factory=list)
 
 
@@ -160,24 +166,26 @@ def export_quantized(
     golden_path: Path | None = None
     slice_report: slices_mod.SliceReport | None = None
     cases: list[golden_mod.GoldenCase] = []
+    writer = _weights_writer(model, modules, options)
     if options.write_mlir or options.golden or options.slice:
         model.to("cpu")
         if options.slice:
-            mlir_files, mlir_stats, slice_report, cases = _export_slice(model, loaded, fam, out_dir, options, notes)
+            mlir_files, mlir_stats, slice_report, cases = _export_slice(model, loaded, fam, out_dir, options, notes, writer)
         else:
             example, source = _example_and_source(loaded, options)
             if options.write_mlir:
-                mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options)
+                mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options, writer)
                 if (note := tm_tensor_note(mlir_stats, "model")) is not None:
                     notes.append(note)
             if options.golden:
                 cases = [_whole_model_golden_case(model, loaded, example, source, options, notes)]
         if options.golden and cases:
             golden_path, golden_index = golden_mod.write_golden(out_dir, cases)
+    weights_files, weights_stats = _write_weights(writer, out_dir)
 
     manifest = _manifest(
         run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats,
-        golden_index, slice_report, numerics, notes, time.perf_counter() - started,
+        golden_index, slice_report, weights_files, weights_stats, numerics, notes, time.perf_counter() - started,
     )
     layers_path = _write_json(out_dir / "layers.json", layers)
     manifest_path = _write_json(out_dir / "export.json", manifest)
@@ -186,8 +194,37 @@ def export_quantized(
         out_dir=out_dir, layers_path=layers_path, manifest_path=manifest_path,
         mlir_path=_file_path(out_dir, mlir_files.get("mlir")),
         linalg_path=_file_path(out_dir, mlir_files.get("mlir_linalg")),
-        golden_path=golden_path, notes=notes,
+        golden_path=golden_path, weights_path=_file_path(out_dir, weights_files.get("weights")), notes=notes,
     )
+
+
+def _weights_writer(model: nn.Module, modules: dict[str, QuantizedLinear], options: ExportOptions) -> weights_mod.WeightsWriter | None:
+    """A WeightsWriter for `--weights external`, None for embedded weights."""
+    if options.weights not in weights_mod.WEIGHT_MODES:
+        raise ValueError(f"weights must be one of {weights_mod.WEIGHT_MODES}, got {options.weights!r}")
+    if options.weights == "embedded":
+        return None
+    if not options.write_mlir:
+        raise ValueError("--weights external needs the MLIR export: the weights are the exported function's arguments")
+    return weights_mod.WeightsWriter(model, modules)
+
+
+def _write_weights(writer: weights_mod.WeightsWriter | None, out_dir: Path) -> tuple[dict[str, str], dict[str, Any] | None]:
+    """`weights.bin` + `weights.json` for every function the writer saw; `({}, None)` when embedded."""
+    if writer is None:
+        return {}, None
+    bin_path, json_path, index = writer.write(out_dir)
+    stats = {
+        "mode": "external",
+        "file": bin_path.name,
+        "index": json_path.name,
+        "total_bytes": index["total_bytes"],
+        "n_tensors": index["n_tensors"],
+        "alignment": index["alignment"],
+        "roles": index["roles"],
+        "functions": {name: len(fn["arguments"]) for name, fn in index["functions"].items()},
+    }
+    return {"weights": bin_path.name, "weights_index": json_path.name}, stats
 
 
 def _example_and_source(loaded: ml.LoadedModel, options: ExportOptions) -> tuple[torch.Tensor, dict[str, Any] | None]:
@@ -211,7 +248,8 @@ WHOLE_MODEL_OUTPUTS = ("logits",)
 
 
 def _export_slice(
-    model: nn.Module, loaded: ml.LoadedModel, fam: families.Family, out_dir: Path, options: ExportOptions, notes: list[str]
+    model: nn.Module, loaded: ml.LoadedModel, fam: families.Family, out_dir: Path, options: ExportOptions,
+    notes: list[str], writer: weights_mod.WeightsWriter | None = None,
 ) -> tuple[dict[str, str | None], dict[str, Any], slices_mod.SliceReport, list[golden_mod.GoldenCase]]:
     """One piece of the model as `<kind>_<i>(hidden_states)`, from a real text sample.
 
@@ -229,7 +267,11 @@ def _export_slice(
     files: dict[str, str | None] = {}
     stats: dict[str, Any] = {}
     if options.write_mlir:
-        imported = mlir_mod.import_function(replay, (captured.hidden,), func_name=captured.function)
+        imported = mlir_mod.import_function(
+            replay, (captured.hidden,), func_name=captured.function, lift_weights=writer is not None
+        )
+        if writer is not None:
+            writer.add_function(imported.func_name, imported.n_user_inputs, imported.lifted)
         files, stats = mlir_mod.write_forms(
             imported, out_dir, captured.function, output_type=options.output_type, bytecode=options.bytecode
         )
@@ -297,7 +339,8 @@ def whole_model_function(model: nn.Module, options: ExportOptions) -> nn.Module:
 
 
 def _export_whole_model(
-    model: nn.Module, example: torch.Tensor, out_dir: Path, options: ExportOptions
+    model: nn.Module, example: torch.Tensor, out_dir: Path, options: ExportOptions,
+    writer: weights_mod.WeightsWriter | None = None,
 ) -> tuple[dict[str, str | None], dict[str, Any]]:
     """`main(%input_ids)` for the whole model, in the forms `options.output_type` asks for."""
     max_seqlen = getattr(model.config, "max_position_embeddings", None)
@@ -305,7 +348,10 @@ def _export_whole_model(
     imported = mlir_mod.import_function(
         whole_model_function(model, options), (example,), func_name=WHOLE_MODEL_FUNC,
         dynamic_shapes=dynamic_shapes, import_symbolic_shape_expressions=options.dynamic_seqlen,
+        lift_weights=writer is not None,
     )
+    if writer is not None:
+        writer.add_function(imported.func_name, imported.n_user_inputs, imported.lifted)
     files, stats = mlir_mod.write_forms(
         imported, out_dir, WHOLE_MODEL_STEM, output_type=options.output_type, bytecode=options.bytecode
     )
@@ -483,7 +529,7 @@ def _matching_rows(quant_key: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, slice_report, numerics, notes, seconds) -> dict[str, Any]:
+def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, slice_report, weights_files, weights_stats, numerics, notes, seconds) -> dict[str, Any]:
     rel = [v["rel_error"] for v in layers.values()]
     out_rel = [v["output_rel_error"] for v in layers.values() if v.get("output_rel_error") is not None]
     files: dict[str, Any] = {
@@ -491,6 +537,8 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
         "mlir": None, "mlir_bytecode": None, "mlir_linalg": None, "mlir_linalg_bytecode": None,
         **mlir_files,
         "golden": f"{golden_mod.GOLDEN_DIR}/{golden_mod.INDEX_NAME}" if golden_index else None,
+        "weights": None, "weights_index": None,
+        **weights_files,
     }
     return {
         "format_version": FORMAT_VERSION,
@@ -511,6 +559,7 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
         "files": files,
         "mlir": {"example_seqlen": options.seqlen, **mlir_stats} if mlir_stats else None,
         "slice": slice_report.as_dict() if slice_report else None,
+        "weights": weights_stats or {"mode": "embedded"},
         "golden": {
             "dataset": options.golden_dataset, "seed": options.golden_seed,
             "functions": golden_mod.summary(golden_index), "tolerance_policy": golden_index["tolerance_policy"],

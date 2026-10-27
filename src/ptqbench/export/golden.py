@@ -30,7 +30,6 @@ from __future__ import annotations
 import copy
 import math
 import random
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -52,8 +51,8 @@ GOLDEN_FORMAT_VERSION = 1
 #: Per-tensor file suffixes.
 NPY_SUFFIX = ".npy"
 BIN_SUFFIX = ".bin"
-#: Byte order of every `.bin`: little-endian, which x86 and RISC-V both use natively.
-BYTE_ORDER = "little"
+#: Byte order of every `.bin` (files.py): little-endian.
+BYTE_ORDER = F.BYTE_ORDER
 
 #: Default source of real token ids and the seed that picks the window.
 DEFAULT_GOLDEN_DATASET = "wikitext2"
@@ -82,24 +81,10 @@ ROLE_OUTPUT = "output"
 # ---- tensors on disk --------------------------------------------------------------------
 
 
-def _numpy_little_endian(tensor: torch.Tensor) -> tuple[np.ndarray, str]:
-    """A contiguous little-endian numpy view of `tensor`, and the dtype name recorded.
-
-    bfloat16 has no numpy dtype: its 16-bit patterns are stored as `uint16` and the index
-    says `bfloat16` so a reader knows to reinterpret them.
-    """
-    t = tensor.detach().to("cpu").contiguous()
-    dtype_name = str(t.dtype).replace("torch.", "")
-    arr = t.view(torch.int16).numpy().view(np.uint16) if t.dtype == torch.bfloat16 else t.numpy()
-    if arr.dtype.byteorder == ">" or (arr.dtype.byteorder == "=" and sys.byteorder == "big"):
-        arr = arr.byteswap().view(arr.dtype.newbyteorder("<"))
-    return np.ascontiguousarray(arr), dtype_name
-
-
 def write_tensor(directory: Path, name: str, tensor: torch.Tensor, *, role: str) -> dict[str, Any]:
     """Write `<directory>/<name>.npy` and `.bin` and return the index entry for both."""
     directory = Path(directory)
-    arr, dtype_name = _numpy_little_endian(tensor)
+    arr, dtype_name = F.numpy_little_endian(tensor)
     raw = arr.tobytes()
     npy_path = directory / f"{name}{NPY_SUFFIX}"
     npy_path.parent.mkdir(parents=True, exist_ok=True)
@@ -124,11 +109,7 @@ def write_tensor(directory: Path, name: str, tensor: torch.Tensor, *, role: str)
 def read_tensor(directory: Path, entry: dict[str, Any]) -> torch.Tensor:
     """The tensor an index entry describes, from its `.bin` (the header-less file)."""
     raw = (Path(directory) / entry["bin"]).read_bytes()
-    arr = np.frombuffer(raw, dtype=np.dtype(entry["storage_dtype"]).newbyteorder("<")).reshape(entry["shape"])
-    t = torch.from_numpy(arr.copy())
-    if entry["dtype"] == "bfloat16":
-        t = t.view(torch.int16).view(torch.bfloat16)
-    return t
+    return F.tensor_from_bytes(raw, entry["storage_dtype"], entry["dtype"], entry["shape"])
 
 
 # ---- realistic inputs -------------------------------------------------------------------

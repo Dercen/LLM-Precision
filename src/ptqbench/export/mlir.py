@@ -158,6 +158,9 @@ class LiftedArgument:
     name: str
     shape: tuple[int, ...]
     dtype: str
+    #: The tensor itself (a reference, not a copy), so the weight writer can store its
+    #: bytes and match it against the model's own parameter names by storage.
+    tensor: Any = field(default=None, repr=False, compare=False)
 
 
 def _storage_key(t: torch.Tensor) -> tuple:
@@ -256,7 +259,7 @@ def _hook_classes():
                 self._by_key[key] = value
                 self.arguments.append(LiftedArgument(
                     index=len(block.arguments) - 1, name=name,
-                    shape=tuple(literal.shape), dtype=_dtype_name(literal.dtype),
+                    shape=tuple(literal.shape), dtype=_dtype_name(literal.dtype), tensor=literal,
                 ))
                 self.n_bytes += literal.numel() * literal.element_size()
             self.n_literals += 1
@@ -405,7 +408,9 @@ def export_torch_dialect(
     )
     stats = {**imported.stats, "dynamic_seqlen": dynamic_seqlen}
     if lift_weights:
-        stats["lifted_arguments"] = [asdict(a) for a in imported.lifted]
+        stats["lifted_arguments"] = [
+            {k: v for k, v in asdict(a).items() if k != "tensor"} for a in imported.lifted
+        ]
     return imported.module, stats
 
 
