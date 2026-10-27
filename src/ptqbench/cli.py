@@ -276,6 +276,7 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
         write_mlir=not args.no_mlir, bytecode=args.bytecode, output_type=args.output_type,
         explicit_positions=args.explicit_positions, score_windows=args.score_windows,
         golden=args.golden, golden_dataset=args.golden_dataset, golden_seed=args.golden_seed,
+        slice=args.slice, block_index=args.block_index,
         score_dataset=args.score_dataset, score_seqlen=args.score_seqlen, score_seed=args.seed,
         eval_mode=args.eval_mode, deterministic=args.deterministic,
     )
@@ -290,6 +291,10 @@ def cmd_export_mlir(args: argparse.Namespace) -> int:
     if m["summary"]["mean_output_rel_error"] is not None:
         print(_fmt("mean rel. output error", round(m["summary"]["mean_output_rel_error"], 6)))
     print(_fmt("bitwise = evaluated", m["summary"]["all_bitwise_equal_to_evaluated"]))
+    if m["slice"]:
+        sl = m["slice"]
+        print(_fmt("slice", f"{sl['function']}: {sl['input_shape']} -> {sl['output_shape']} {sl['dtype']}, "
+                            f"{len(sl['quantized_modules'])} quantized modules"))
     if result.mlir_path:
         print(_fmt("mlir", f"{result.mlir_path} ({m['mlir']['mlir_bytes'] / 1024**2:.1f} MB)"))
     if result.linalg_path:
@@ -443,6 +448,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="write golden/: a real seeded input and the output of every exported function as .npy + .bin, "
              "with the comparison tolerance derived from a float64 rerun",
     )
+    p_exp.add_argument(
+        "--slice", default=None, choices=["block", "attention", "mlp"],
+        help="export one piece of block --block-index instead of the whole model; its input is the hidden "
+             "state the piece receives on a real text sample (chosen like the golden input)",
+    )
+    p_exp.add_argument("--block-index", type=int, default=0, help="which decoder block --slice cuts from")
     p_exp.add_argument("--golden-dataset", default="wikitext2", help="text the golden token ids come from")
     p_exp.add_argument("--golden-seed", type=int, default=0, help="picks the window of that text")
     p_exp.add_argument("--score-windows", type=int, default=0, help="windows for per-layer output error (0 = off)")

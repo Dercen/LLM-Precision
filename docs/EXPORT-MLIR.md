@@ -141,6 +141,38 @@ golden/main/logits.bin
 
 `export.json` repeats the headline numbers under `golden`.
 
+## One piece of the model: `--slice`
+
+A whole model is a lot to compile at once. `--slice` exports one decoder block, or just
+its attention or its MLP, chosen by `--block-index`, as a function of the hidden states
+that piece really receives:
+
+```bash
+uv run ptq export-mlir --model smollm2-135m --bits 4 --group-size 64 \
+    --slice block --block-index 3 --golden --output-type both --out exports/smollm2-block3
+```
+
+How it works: the model reads a real text sample (the same seeded WikiText-2 window
+`--golden` uses), and forward hooks record what block 3 was handed, what it returned,
+and every other argument it received: Llama's rotary cos/sin tables, the position ids,
+the (absent) attention mask and cache. The exported function `block_3(hidden_states)`
+replays those other arguments as constants, so it is a pure function of one tensor. It
+is checked to reproduce the recorded output bit for bit before anything is written.
+
+| `--slice` | function | input | output |
+|---|---|---|---|
+| `block` | `block_<i>` | `[1, S, hidden]` hidden states entering the block | the block's output, same shape |
+| `attention` | `attention_<i>` | the post-norm hidden states entering `self_attn` | `attn_output` (the attention weights are dropped) |
+| `mlp` | `mlp_<i>` | the hidden states entering the MLP: Llama `[1, S, hidden]`, OPT `[S, hidden]` because the OPT block flattens before `fc1` | the MLP's output; the residual add stays outside |
+
+Files are named after the function (`block_3.mlir`, `block_3.linalg.mlir`), `model.mlir`
+is not written, and `export.json` describes the piece under `slice`: shapes, dtype, the
+quantized layers inside it, and every constant that was frozen in. With `--golden` the
+recorded input and output are the golden vectors. Works for the Llama and OPT families
+through `src/ptqbench/models/families.py`, which names each family's attention module
+and MLP (OPT's `fc1 -> activation -> fc2` chain is wrapped as one module there).
+SmolLM2-135M, the primary target, has hidden size 576, so use `--group-size 64`.
+
 ## The lowered form: `--output-type linalg`
 
 `model.mlir` is the model in torch-mlir's *torch dialect*: one op per PyTorch operation,

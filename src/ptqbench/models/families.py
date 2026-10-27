@@ -8,6 +8,7 @@ model -- the quantizers, block streaming, the quant cache -- goes through here.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,6 +24,24 @@ def _get(root: Any, path: str) -> Any:
     return node
 
 
+class OPTMLP(nn.Module):
+    """OPT's feed-forward as one module: `fc2(act(fc1(x)))`.
+
+    `OPTDecoderLayer` holds `fc1`, `activation_fn` and `fc2` directly and runs them
+    inline between its norms, so unlike Llama there is no `block.mlp` to export. This
+    wrapper shares the block's own modules (no copy), so its weights are the block's.
+    """
+
+    def __init__(self, block: nn.Module):
+        super().__init__()
+        self.fc1 = block.fc1
+        self.activation_fn = block.activation_fn
+        self.fc2 = block.fc2
+
+    def forward(self, hidden_states):
+        return self.fc2(self.activation_fn(self.fc1(hidden_states)))
+
+
 @dataclass(frozen=True)
 class Family:
     name: str
@@ -30,6 +49,16 @@ class Family:
     targets: tuple[str, ...]
     sequential_groups: tuple[tuple[str, ...], ...]
     post_block_paths: tuple[str, ...]
+    #: The attention module inside a block; its forward returns `(attn_output, attn_weights)`.
+    attention_path: str = "self_attn"
+    #: The modules the MLP starts and ends with, relative to the block. One and the same
+    #: module when the MLP is a submodule (Llama `mlp`); OPT runs `fc1 -> act -> fc2`
+    #: inline, so its span is `("fc1", "fc2")`. A slice export hooks the input of the
+    #: first and the output of the last.
+    mlp_span: tuple[str, str] = ("mlp", "mlp")
+    #: Builds the MLP as one module when it is not already one (OPT); None means
+    #: `block.<mlp_span[0]>` is the module.
+    mlp_builder: Callable[[nn.Module], nn.Module] | None = None
 
     def block_list(self, model: nn.Module) -> list[nn.Module]:
         blocks = _get(model, self.blocks_path)
@@ -40,6 +69,25 @@ class Family:
     def post_block_modules(self, model: nn.Module) -> list[nn.Module]:
         """Modules applied after the last block and before lm_head, in order; absent ones skipped."""
         return [m for p in self.post_block_paths if (m := _get(model, p)) is not None]
+
+    def attention_module(self, block: nn.Module) -> nn.Module:
+        mod = _get(block, self.attention_path)
+        if mod is None:
+            raise RuntimeError(f"{type(block).__name__} has no {self.attention_path!r}; wrong family {self.name!r}?")
+        return mod
+
+    def mlp_bounds(self, block: nn.Module) -> tuple[nn.Module, nn.Module]:
+        """(first, last) modules of the MLP, whose input and output bound the piece."""
+        first, last = (_get(block, p) for p in self.mlp_span)
+        if first is None or last is None:
+            raise RuntimeError(f"{type(block).__name__} has no {self.mlp_span!r}; wrong family {self.name!r}?")
+        return first, last
+
+    def mlp_module(self, block: nn.Module) -> nn.Module:
+        """The MLP as one module sharing the block's weights."""
+        if self.mlp_builder is not None:
+            return self.mlp_builder(block)
+        return self.mlp_bounds(block)[0]
 
 
 _LLAMA_TARGETS = (
@@ -65,6 +113,8 @@ OPT = Family(
     ),
     # OPT-350m is post-LN (no final_layer_norm) and projects 1024 -> 512 before lm_head.
     post_block_paths=("model.decoder.final_layer_norm", "model.decoder.project_out"),
+    mlp_span=("fc1", "fc2"),
+    mlp_builder=OPTMLP,
 )
 
 LLAMA = Family(

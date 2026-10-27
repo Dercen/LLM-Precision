@@ -32,6 +32,7 @@ from ..runner import execute as X
 from . import files as files_mod
 from . import golden as golden_mod
 from . import mlir as mlir_mod
+from . import slices as slices_mod
 from .quantized import QuantizedLinear, swap_in_quantized
 
 FORMAT_VERSION = 1
@@ -57,6 +58,11 @@ class ExportOptions:
     golden: bool = False
     golden_dataset: str = golden_mod.DEFAULT_GOLDEN_DATASET
     golden_seed: int = golden_mod.DEFAULT_GOLDEN_SEED
+    #: Export one piece instead of the whole model: `block`, `attention` or `mlp` of block
+    #: `block_index` (export/slices.py). Its input is captured from a real text sample
+    #: (the golden dataset and seed pick it), and the whole-model `main` is not written.
+    slice: str | None = None
+    block_index: int = 0
     #: Windows of `score_dataset` on which each layer's output is compared with the
     #: output its pre-rounding weight gives on the same input; 0 disables scoring.
     score_windows: int = 0
@@ -152,20 +158,26 @@ def export_quantized(
     mlir_stats: dict[str, Any] = {}
     golden_index: dict[str, Any] | None = None
     golden_path: Path | None = None
-    if options.write_mlir or options.golden:
+    slice_report: slices_mod.SliceReport | None = None
+    cases: list[golden_mod.GoldenCase] = []
+    if options.write_mlir or options.golden or options.slice:
         model.to("cpu")
-        example, source = _example_and_source(loaded, options)
-        if options.write_mlir:
-            mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options)
-            if (note := tm_tensor_note(mlir_stats, "model")) is not None:
-                notes.append(note)
-        if options.golden:
-            case = _whole_model_golden_case(model, loaded, example, source, options, notes)
-            golden_path, golden_index = golden_mod.write_golden(out_dir, [case])
+        if options.slice:
+            mlir_files, mlir_stats, slice_report, cases = _export_slice(model, loaded, fam, out_dir, options, notes)
+        else:
+            example, source = _example_and_source(loaded, options)
+            if options.write_mlir:
+                mlir_files, mlir_stats = _export_whole_model(model, example, out_dir, options)
+                if (note := tm_tensor_note(mlir_stats, "model")) is not None:
+                    notes.append(note)
+            if options.golden:
+                cases = [_whole_model_golden_case(model, loaded, example, source, options, notes)]
+        if options.golden and cases:
+            golden_path, golden_index = golden_mod.write_golden(out_dir, cases)
 
     manifest = _manifest(
         run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats,
-        golden_index, numerics, notes, time.perf_counter() - started,
+        golden_index, slice_report, numerics, notes, time.perf_counter() - started,
     )
     layers_path = _write_json(out_dir / "layers.json", layers)
     manifest_path = _write_json(out_dir / "export.json", manifest)
@@ -196,6 +208,45 @@ def _example_and_source(loaded: ml.LoadedModel, options: ExportOptions) -> tuple
 #: Names of the whole-model function's inputs and outputs in the golden index.
 WHOLE_MODEL_INPUTS = ("input_ids",)
 WHOLE_MODEL_OUTPUTS = ("logits",)
+
+
+def _export_slice(
+    model: nn.Module, loaded: ml.LoadedModel, fam: families.Family, out_dir: Path, options: ExportOptions, notes: list[str]
+) -> tuple[dict[str, str | None], dict[str, Any], slices_mod.SliceReport, list[golden_mod.GoldenCase]]:
+    """One piece of the model as `<kind>_<i>(hidden_states)`, from a real text sample.
+
+    The sample is the golden window (always real text, with or without `--golden`); the
+    piece's captured input is the example the MLIR is traced with and, with `--golden`,
+    the golden input, its captured output the golden output.
+    """
+    if options.dynamic_seqlen:
+        raise ValueError("--dynamic-seqlen cannot be combined with --slice: the captured constants fix the sequence length")
+    ids, text_source = golden_mod.realistic_window(
+        loaded.tokenizer, options.golden_dataset, options.golden_seed, options.seqlen
+    )
+    captured = slices_mod.capture_piece(model, fam, options.slice, options.block_index, ids)
+    replay, report = slices_mod.build_replay(captured)
+    files: dict[str, str | None] = {}
+    stats: dict[str, Any] = {}
+    if options.write_mlir:
+        imported = mlir_mod.import_function(replay, (captured.hidden,), func_name=captured.function)
+        files, stats = mlir_mod.write_forms(
+            imported, out_dir, captured.function, output_type=options.output_type, bytecode=options.bytecode
+        )
+        if (note := tm_tensor_note(stats, captured.function)) is not None:
+            notes.append(note)
+    cases: list[golden_mod.GoldenCase] = []
+    if options.golden:
+        piece_bytes = sum(t.numel() * t.element_size() for t in replay.state_dict().values())
+        measure = golden_mod.fp64_reference_fits(piece_bytes)
+        if not measure:
+            notes.append("golden tolerance not measured: a float64 copy of the piece does not fit in free host RAM")
+        source = {"kind": "captured_activations", "piece": captured.function, "text": text_source}
+        cases.append(golden_mod.build_case(
+            captured.function, replay, [(slices_mod.SLICE_INPUT_NAME, captured.hidden)],
+            [slices_mod.SLICE_OUTPUT_NAMES[captured.kind]], source=source, measure=measure,
+        ))
+    return files, stats, report, cases
 
 
 def _whole_model_golden_case(model, loaded, example, source, options, notes) -> golden_mod.GoldenCase:
@@ -432,7 +483,7 @@ def _matching_rows(quant_key: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, numerics, notes, seconds) -> dict[str, Any]:
+def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options, mlir_files, mlir_stats, golden_index, slice_report, numerics, notes, seconds) -> dict[str, Any]:
     rel = [v["rel_error"] for v in layers.values()]
     out_rel = [v["output_rel_error"] for v in layers.values() if v.get("output_rel_error") is not None]
     files: dict[str, Any] = {
@@ -459,6 +510,7 @@ def _manifest(run, loaded, quant_fields, calib_fields, modules, layers, options,
         "schemes_used": sorted({m.scheme for m in modules.values()}),
         "files": files,
         "mlir": {"example_seqlen": options.seqlen, **mlir_stats} if mlir_stats else None,
+        "slice": slice_report.as_dict() if slice_report else None,
         "golden": {
             "dataset": options.golden_dataset, "seed": options.golden_seed,
             "functions": golden_mod.summary(golden_index), "tolerance_policy": golden_index["tolerance_policy"],
